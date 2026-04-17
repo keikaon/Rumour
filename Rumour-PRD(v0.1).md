@@ -59,6 +59,7 @@ Technical Logic: React useEffect monitors city_id change and updates Tailwind gl
     "vouch_count": "integer"
   }
 }
+
 3. Infrastructure & Environment
 
 Frontend: React / React Native + Tailwind CSS for responsive styling.
