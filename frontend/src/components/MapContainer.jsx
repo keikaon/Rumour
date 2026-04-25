@@ -47,13 +47,12 @@ const MapContainer = () => {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [locationStatus, setLocationStatus] = useState('locating'); 
   const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [showError, setShowError] = useState(false); // New: For built-in Access Denied UI
+  const [showError, setShowError] = useState(false); 
 
   /**
    * 📡 DATA ACTION: FETCH BUZZES
    */
   const loadBuzzesFromBackend = async (lat, lng) => {
-    console.log("📡 [NETWORK] Fetching events from server...");
     try {
       const response = await fetch(`http://localhost:5000/api/buzzes?lat=${lat}&lng=${lng}`);
       const data = await response.json();
@@ -190,7 +189,6 @@ const MapContainer = () => {
   // --- ACTIONS ---
   const handleRecenter = () => {
     if (mapRef.current && userCoords) {
-      // Logic: Preserve current zoom/pitch by only providing center
       mapRef.current.flyTo({ 
         center: [userCoords.lng, userCoords.lat], 
         essential: true 
@@ -200,15 +198,15 @@ const MapContainer = () => {
 
   const handlePassword = (e) => {
     e.preventDefault();
-    const correctPass = (selectedBuzz.password || "fidelio").toLowerCase();
-    if (passwordAttempt.toLowerCase() === correctPass) {
+    // FIXED: Strict case-sensitive comparison
+    const correctPass = (selectedBuzz.password || "fidelio");
+    if (passwordAttempt === correctPass) {
       setIsUnlocked(true);
       setShowError(false);
       setIsInputFocused(false);
     } else {
       setShowError(true);
       setPasswordAttempt("");
-      // Auto-hide error after 3s
       setTimeout(() => setShowError(false), 3000);
     }
   };
@@ -299,7 +297,6 @@ const MapContainer = () => {
                       <span className="text-6xl mb-6 animate-pulse">🤫</span>
                       <h3 className="text-red-500 font-black text-3xl uppercase tracking-widest mb-2 leading-none">Secret Door</h3>
                       
-                      {/* BUILT-IN ERROR UI */}
                       <div className={`transition-all duration-300 mb-6 ${showError ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
                         <p className="text-white bg-red-600/80 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl">
                           Access Denied
@@ -308,10 +305,14 @@ const MapContainer = () => {
 
                       <form onSubmit={handlePassword} className="w-full flex flex-col gap-4">
                         <input 
-                          type="text" value={passwordAttempt} onChange={e => setPasswordAttempt(e.target.value)} 
-                          onFocus={() => setIsInputFocused(true)} onBlur={() => setIsInputFocused(false)} 
-                          placeholder="PASSWORD..." 
-                          className={`w-full bg-zinc-900/90 border rounded-2xl py-5 text-white text-center uppercase font-black outline-none transition-all text-xs tracking-widest ${showError ? 'border-red-500 animate-shake' : 'border-zinc-800 focus:border-red-500'}`} 
+                          type="text" 
+                          value={passwordAttempt} 
+                          onChange={e => setPasswordAttempt(e.target.value)} 
+                          onFocus={() => setIsInputFocused(true)} 
+                          onBlur={() => setIsInputFocused(false)} 
+                          placeholder="PASSWORD (Case Sensitive)..." 
+                          // FIXED: Removed "uppercase" class to allow users to see casing
+                          className={`w-full bg-zinc-900/90 border rounded-2xl py-5 text-white text-center font-black outline-none transition-all text-xs tracking-widest ${showError ? 'border-red-500 animate-shake' : 'border-zinc-800 focus:border-red-500'}`} 
                         />
                         <button type="submit" className="bg-red-500 text-white font-black py-5 rounded-2xl uppercase tracking-widest shadow-2xl active:scale-95 transition-all">Knock</button>
                       </form>
