@@ -3,8 +3,10 @@ import { auth } from './firebase'; // Connects to your Firebase engine
 import { onAuthStateChanged } from 'firebase/auth';
 import Login from './Login'; 
 
-// FIXED IMPORT: Telling the app to look inside the "components" folder
+// Telling the app to look inside the "components" folder
 import MapContainer from './components/MapContainer'; 
+// 1. NEW: Import the ProfileLegend
+import ProfileLegend from './components/ProfileLegend'; 
 
 import './App.css';
 
@@ -38,8 +40,11 @@ function App() {
   return (
     <div className="App">
       {user ? (
-        /* If a user is found, show the Map */
-        <MapContainer />
+        /* 2. NEW: Wrap both components in a fragment (<>) so they render together safely */
+        <>
+          <MapContainer />
+          <ProfileLegend />
+        </>
       ) : (
         /* If no user is found, show the Login Page */
         <Login />

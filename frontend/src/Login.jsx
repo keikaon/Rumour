@@ -7,19 +7,20 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignup, setIsSignup] = useState(false); // false = Login mode, true = Signup mode
+  const [authError, setAuthError] = useState('');
 
   const handleAuth = async () => {
     try {
+      setAuthError('');
       if (isSignup) {
         // This is the "Create Account" engine
         await createUserWithEmailAndPassword(auth, email, password);
-        alert("Account created! Welcome to the Buzz.");
       } else {
         // This is the "Login" engine
         await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (error) {
-      alert("Auth Error: " + error.message);
+      setAuthError(error.message);
     }
   };
 
@@ -36,17 +37,25 @@ const Login = () => {
         </header>
 
         <div className="w-full space-y-4">
+          <div className={`overflow-hidden rounded-3xl border border-red-500/60 bg-red-500/10 transition-all duration-300 ease-out ${authError ? 'max-h-40 py-4 opacity-100 translate-y-0' : 'max-h-0 py-0 opacity-0 -translate-y-2 pointer-events-none'}`} aria-live="polite">
+            <div className={`space-y-2 px-4 ${authError ? 'opacity-100' : 'opacity-0'}`}>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-red-300">Authentication error</p>
+              <p className="text-sm leading-snug text-red-100">{authError || ' '}</p>
+            </div>
+          </div>
           <input 
             type="email" 
             placeholder="Email" 
             className="w-full p-4 bg-zinc-800 border border-zinc-700 rounded-xl focus:ring-2 focus:ring-white outline-none"
-            onChange={(e) => setEmail(e.target.value)} 
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setAuthError(''); }} 
           />
           <input 
             type="password" 
             placeholder="Password" 
             className="w-full p-4 bg-zinc-800 border border-zinc-700 rounded-xl focus:ring-2 focus:ring-white outline-none"
-            onChange={(e) => setPassword(e.target.value)} 
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setAuthError(''); }} 
           />
           
           <button 
