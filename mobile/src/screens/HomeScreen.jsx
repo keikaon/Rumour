@@ -2,58 +2,49 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import BuzzDetailModal from '../components/BuzzDetailModal';
+import FieldGuideDrawer from '../components/FieldGuideDrawer';
 import IntelReportModal from '../components/IntelReportModal';
-import ProfileLegend from '../components/ProfileLegend';
-import HostReputation from '../components/HostReputation';
 import SignalMap from '../components/SignalMap';
 import { getBackendUrl } from '../config/backendUrl';
-import {
-  formatDistance,
-  getBuzzDisplay,
-  processBuzzes,
-} from '../lib/proximity';
+import { processBuzzes } from '../lib/proximity';
 import colors from '../theme/colors';
 
-const formatTime = (expiresAt, now) => {
-  if (!expiresAt) return '00:00:00';
-  const diff = expiresAt - now;
-  if (diff <= 0) return '00:00:00';
-  const hours = Math.floor(diff / 3600000).toString().padStart(2, '0');
-  const minutes = Math.floor((diff % 3600000) / 60000)
-    .toString()
-    .padStart(2, '0');
-  const seconds = Math.floor((diff % 60000) / 1000)
-    .toString()
-    .padStart(2, '0');
-  return `${hours}:${minutes}:${seconds}`;
-};
-
 const HomeScreen = ({ user, onSignOut }) => {
+  const insets = useSafeAreaInsets();
   const [location, setLocation] = useState(null);
-  const [permissionStatus, setPermissionStatus] = useState('unknown');
+  const [locationStatus, setLocationStatus] = useState('locating');
   const [buzzes, setBuzzes] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [foundCount, setFoundCount] = useState(0);
   const [showIntelReport, setShowIntelReport] = useState(false);
   const [selectedBuzz, setSelectedBuzz] = useState(null);
-  const [now, setNow] = useState(Date.now());
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const backendUrl = getBackendUrl();
+  const isReady = locationStatus === 'ready';
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (locationStatus === 'locating') {
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => (prev >= 90 ? prev : prev + Math.random() * 15));
+      }, 400);
+      return () => clearInterval(interval);
+    }
+    if (locationStatus === 'success' || locationStatus === 'ready') {
+      setLoadingProgress(100);
+    }
+    return undefined;
+  }, [locationStatus]);
 
   useEffect(() => {
     requestLocation();
@@ -61,15 +52,13 @@ const HomeScreen = ({ user, onSignOut }) => {
 
   const requestLocation = async () => {
     setError('');
-    setLoading(true);
+    setLocationStatus('locating');
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      setPermissionStatus(status);
 
       if (status !== 'granted') {
-        setError('Location permission denied. Enable it to view nearby buzzes.');
-        setLoading(false);
+        setLocationStatus('permission');
         return;
       }
 
@@ -78,10 +67,11 @@ const HomeScreen = ({ user, onSignOut }) => {
       });
       setLocation(currentLocation.coords);
       await fetchBuzzes(currentLocation.coords);
+      setLocationStatus('success');
+      setTimeout(() => setLocationStatus('ready'), 1500);
     } catch (err) {
+      setLocationStatus('error');
       setError('Unable to access location. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -105,14 +95,14 @@ const HomeScreen = ({ user, onSignOut }) => {
       setBuzzes([]);
       const hint =
         Platform.OS === 'ios' && !backendUrl.includes('192.168') && !backendUrl.includes('10.')
-          ? " On a physical iPhone, set EXPO_PUBLIC_BACKEND_URL to your computer's LAN IP (port 5000)."
+          ? " Set EXPO_PUBLIC_BACKEND_URL to your PC's LAN IP (port 5000)."
           : '';
-      setError(`Failed to load nearby signals from ${backendUrl}.${hint}`);
+      setError(`Failed to load nearby signals.${hint}`);
       return [];
     }
   };
 
-  const scanArea = async () => {
+  const initiateScan = async () => {
     if (!location) {
       await requestLocation();
       return;
@@ -121,7 +111,7 @@ const HomeScreen = ({ user, onSignOut }) => {
     setIsScanning(true);
     setFoundCount(0);
     setShowIntelReport(false);
-    setLoading(true);
+    setSelectedBuzz(null);
 
     const results = await fetchBuzzes(location);
 
@@ -134,7 +124,6 @@ const HomeScreen = ({ user, onSignOut }) => {
         clearInterval(interval);
         setTimeout(() => {
           setIsScanning(false);
-          setLoading(false);
           if (results.length > 0) {
             setShowIntelReport(true);
           }
@@ -143,112 +132,116 @@ const HomeScreen = ({ user, onSignOut }) => {
     }, 300);
   };
 
-  const visibleBuzzes = buzzes.filter(b => getBuzzDisplay(b).visible);
+  const closeEverything = () => {
+    setSelectedBuzz(null);
+    setShowIntelReport(false);
+  };
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      automaticallyAdjustKeyboardInsets
-      overScrollMode="never"
-      bounces={false}
-    >
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Rumour</Text>
-          <Text style={styles.subtitle}>Hyper-local signals in your pocket</Text>
-        </View>
-        <TouchableOpacity onPress={onSignOut} style={styles.signOutButton}>
-          <Text style={styles.signOutText}>Sign out</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.statusCard}>
-        <Text style={styles.statusLabel}>Location status</Text>
-        <Text style={styles.statusValue}>
-          {permissionStatus === 'granted' ? 'Active' : 'Disabled'}
-        </Text>
-        <Text style={styles.statusDetail}>
-          {location
-            ? `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
-            : 'Waiting for GPS...'}
-        </Text>
-        <Text style={styles.apiHint}>API: {backendUrl}</Text>
-      </View>
-
-      {isScanning ? (
-        <View style={styles.scanOverlay}>
-          <ActivityIndicator size="large" color="#22c55e" />
-          <Text style={styles.scanTitle}>Intercepting Signals...</Text>
-          <Text style={styles.scanCount}>
-            {foundCount} <Text style={styles.scanCountDim}>FOUND</Text>
-          </Text>
-        </View>
-      ) : null}
-
-      <TouchableOpacity
-        style={[styles.scanButton, isScanning && styles.scanButtonDisabled]}
-        onPress={scanArea}
-        disabled={loading || isScanning}
-      >
-        <Text style={styles.scanButtonText}>
-          {isScanning ? 'Scanning…' : loading ? 'Loading…' : 'Initiate Scan'}
-        </Text>
-      </TouchableOpacity>
-
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
+    <View style={styles.root}>
       <SignalMap
         location={location}
         buzzes={buzzes}
         onSelectBuzz={buzz => setSelectedBuzz(buzz)}
+        dimmed={!isReady || isScanning}
+        hideMarkers={isScanning}
       />
 
-      <View style={styles.cardsContainer}>
-        {visibleBuzzes.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>
-              No visible signals in range. Tier 1 ghosts stay hidden beyond 5km.
+      {isScanning ? (
+        <View style={styles.scanOverlay} pointerEvents="none">
+          <View style={styles.sonarRingOuter} />
+          <View style={styles.sonarRingInner} />
+          <View style={styles.scanCard}>
+            <Text style={styles.scanEmoji}>📡</Text>
+            <Text style={styles.scanLabel}>Intercepting Signals...</Text>
+            <Text style={styles.scanCount}>
+              {foundCount} <Text style={styles.scanCountDim}>FOUND</Text>
             </Text>
           </View>
-        ) : (
-          visibleBuzzes.map(item => {
-            const display = getBuzzDisplay(item);
-            const urgent = item.expiresAt && item.expiresAt - now < 3600000;
-            return (
-              <TouchableOpacity
-                key={item.id?.toString() || `${item.lat}-${item.lng}`}
-                style={styles.buzzCard}
-                onPress={() => setSelectedBuzz(item)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.buzzTitle}>{display.headline}</Text>
-                  {item.isVerifiedSource && display.tier === 5 && !display.canUnlock ? (
-                    <View style={styles.verifiedChip}>
-                      <Text style={styles.verifiedChipText}>★</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={styles.buzzMeta}>
-                  {display.subtitle} • {formatDistance(item.distance)}
-                </Text>
-                <Text style={styles.buzzDescription} numberOfLines={3}>
-                  {display.body || 'Encrypted field report.'}
-                </Text>
-                <Text style={[styles.timer, urgent && styles.timerUrgent]}>
-                  {formatTime(item.expiresAt, now)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </View>
+        </View>
+      ) : null}
 
-      <ProfileLegend />
-      <HostReputation />
+      {!isReady && !isScanning && locationStatus !== 'permission' ? (
+        <View style={styles.loadingOverlay} pointerEvents="none">
+          <Text style={styles.loadingTitle}>Rumour</Text>
+          {locationStatus === 'locating' ? (
+            <>
+              <ActivityIndicator size="large" color="#fff" style={styles.loadingSpinner} />
+              <Text style={styles.loadingHint}>Syncing local grid...</Text>
+            </>
+          ) : locationStatus === 'success' ? (
+            <View style={styles.successBadge}>
+              <Text style={styles.successCheck}>✓</Text>
+            </View>
+          ) : null}
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${loadingProgress}%` }]} />
+          </View>
+        </View>
+      ) : null}
+
+      {locationStatus === 'permission' ? (
+        <View style={styles.permissionOverlay}>
+          <View style={styles.permissionCard}>
+            <Text style={styles.permissionTitle}>Cannot get location</Text>
+            <Text style={styles.permissionBody}>
+              Rumour requires access to your device's location to show nearby events. Please
+              allow location access in Settings.
+            </Text>
+            <TouchableOpacity style={styles.permissionPrimary} onPress={requestLocation}>
+              <Text style={styles.permissionPrimaryText}>Retry / Request Permission</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+
+      {isReady ? (
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]} pointerEvents="box-none">
+          <Text style={styles.headerTitle}>Rumour</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.scanBtn, isScanning && styles.scanBtnDisabled]}
+              onPress={initiateScan}
+              disabled={isScanning}
+            >
+              <Text style={styles.scanBtnText}>
+                {isScanning ? 'Scanning...' : 'Initiate Scan'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.leaveBtn} onPress={onSignOut}>
+              <Text style={styles.leaveBtnText}>Leave</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+
+      {isReady && !isLegendOpen ? (
+        <TouchableOpacity
+          style={[styles.fieldProtocolBtn, { bottom: insets.bottom + 24 }]}
+          onPress={() => setIsLegendOpen(true)}
+          activeOpacity={0.9}
+        >
+          <View style={styles.fieldProtocolIcon}>
+            <Text style={styles.fieldProtocolEmoji}>📖</Text>
+          </View>
+          <View>
+            <Text style={styles.fieldProtocolLabel}>Field Protocol</Text>
+            <Text style={styles.fieldProtocolVersion}>v3.0.48</Text>
+          </View>
+        </TouchableOpacity>
+      ) : null}
+
+      {error && isReady ? (
+        <View style={[styles.errorBanner, { top: insets.top + 80 }]}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      <FieldGuideDrawer
+        visible={isLegendOpen}
+        onClose={() => setIsLegendOpen(false)}
+        user={user}
+      />
 
       <IntelReportModal
         visible={showIntelReport}
@@ -263,174 +256,276 @@ const HomeScreen = ({ user, onSignOut }) => {
       <BuzzDetailModal
         buzz={selectedBuzz}
         visible={!!selectedBuzz}
-        onClose={() => setSelectedBuzz(null)}
+        onClose={closeEverything}
+        onSignOut={onSignOut}
       />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  scroll: {
+  root: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: colors.background,
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 34,
-    fontWeight: '900',
-  },
-  subtitle: {
-    color: '#94a3b8',
-    marginTop: 4,
-  },
-  signOutButton: {
-    justifyContent: 'center',
-  },
-  signOutText: {
-    color: '#f8fafc',
-    fontWeight: '700',
-  },
-  statusCard: {
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 16,
-  },
-  statusLabel: {
-    color: '#94a3b8',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  statusValue: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  statusDetail: {
-    color: '#cbd5e1',
-    marginTop: 6,
-  },
-  apiHint: {
-    color: '#64748b',
-    fontSize: 11,
-    marginTop: 8,
-  },
   scanOverlay: {
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    padding: 24,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    zIndex: 50,
+  },
+  sonarRingOuter: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.2)',
+  },
+  sonarRingInner: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.4)',
+  },
+  scanCard: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 48,
     borderWidth: 1,
     borderColor: 'rgba(34,197,94,0.3)',
+    paddingVertical: 32,
+    paddingHorizontal: 40,
+    alignItems: 'center',
   },
-  scanTitle: {
+  scanEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  scanLabel: {
     color: '#22c55e',
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 2,
+    letterSpacing: 3,
     textTransform: 'uppercase',
-    marginTop: 12,
+    marginBottom: 8,
   },
   scanCount: {
     color: '#fff',
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: '900',
-    marginTop: 8,
+    fontStyle: 'italic',
   },
   scanCountDim: {
     color: 'rgba(34,197,94,0.5)',
   },
-  scanButton: {
-    backgroundColor: '#22c55e',
-    borderRadius: 18,
-    paddingVertical: 16,
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    zIndex: 70,
+  },
+  loadingTitle: {
+    color: 'rgba(255,255,255,0.15)',
+    fontSize: 56,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    textTransform: 'uppercase',
+    letterSpacing: -2,
+    marginBottom: 32,
+  },
+  loadingSpinner: {
+    marginBottom: 16,
+  },
+  loadingHint: {
+    color: '#71717a',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  successBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  successCheck: {
+    color: '#000',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  progressTrack: {
+    width: 200,
+    height: 4,
+    backgroundColor: '#27272a',
+    borderRadius: 2,
+    marginTop: 24,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#fff',
+  },
+  permissionOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    zIndex: 90,
+  },
+  permissionCard: {
+    backgroundColor: '#18181b',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 28,
+    maxWidth: 400,
+  },
+  permissionTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  permissionBody: {
+    color: '#a1a1aa',
+    textAlign: 'center',
+    lineHeight: 22,
     marginBottom: 20,
   },
-  scanButtonDisabled: {
-    opacity: 0.6,
+  permissionPrimary: {
+    backgroundColor: '#22c55e',
+    borderRadius: 24,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
-  scanButtonText: {
-    color: '#0f172a',
+  permissionPrimaryText: {
+    color: '#000',
     fontWeight: '800',
+    fontSize: 13,
+  },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    zIndex: 40,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: '900',
+    fontStyle: 'italic',
     textTransform: 'uppercase',
-    fontSize: 12,
+    letterSpacing: -1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  scanBtn: {
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: '#22c55e',
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  scanBtnDisabled: {
+    opacity: 0.5,
+  },
+  scanBtnText: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  leaveBtn: {
+    backgroundColor: '#18181b',
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  leaveBtnText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  fieldProtocolBtn: {
+    position: 'absolute',
+    left: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(24,24,27,0.9)',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 28,
+    paddingVertical: 10,
+    paddingLeft: 10,
+    paddingRight: 20,
+    zIndex: 40,
+  },
+  fieldProtocolIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#27272a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldProtocolEmoji: {
+    fontSize: 20,
+  },
+  fieldProtocolLabel: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  fieldProtocolVersion: {
+    color: '#71717a',
+    fontSize: 8,
+    fontFamily: 'monospace',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  errorBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(127,29,29,0.9)',
+    borderRadius: 12,
+    padding: 12,
+    zIndex: 45,
   },
   errorText: {
     color: '#fecaca',
-    marginBottom: 12,
-  },
-  cardsContainer: {
-    marginBottom: 24,
-  },
-  emptyCard: {
-    borderRadius: 20,
-    backgroundColor: '#111827',
-    padding: 18,
-  },
-  emptyText: {
-    color: '#cbd5e1',
-  },
-  buzzCard: {
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  buzzTitle: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 6,
-    flex: 1,
-  },
-  verifiedChip: {
-    backgroundColor: 'rgba(6,182,212,0.15)',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginLeft: 8,
-  },
-  verifiedChipText: {
-    color: '#22d3ee',
-    fontWeight: '800',
-  },
-  buzzMeta: {
-    color: '#94a3b8',
-    marginBottom: 12,
     fontSize: 12,
-  },
-  buzzDescription: {
-    color: '#cbd5e1',
-    marginBottom: 10,
-    lineHeight: 20,
-  },
-  timer: {
-    color: '#f8fafc',
-    fontWeight: '700',
-    fontFamily: 'monospace',
-  },
-  timerUrgent: {
-    color: '#ef4444',
+    textAlign: 'center',
   },
 });
 

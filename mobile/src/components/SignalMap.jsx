@@ -2,6 +2,7 @@ import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { categoryColor, getBuzzDisplay } from '../lib/proximity';
+import colors from '../theme/colors';
 
 const getMapProvider = () => {
   if (Platform.OS === 'web') return undefined;
@@ -34,16 +35,16 @@ const TargetMarker = ({ buzz, secret }) => (
       style={[styles.targetLabel, secret && styles.targetSecretLabel]}
       numberOfLines={1}
     >
-      {secret ? 'SECRET' : buzz.title}
+      {secret ? 'SECRET EVENT' : buzz.title}
     </Text>
   </View>
 );
 
-const SignalMap = ({ location, buzzes, onSelectBuzz }) => {
+const SignalMap = ({ location, buzzes, onSelectBuzz, dimmed = false, hideMarkers = false }) => {
   if (!location) {
     return (
-      <View style={styles.placeholderCard}>
-        <Text style={styles.placeholderText}>Waiting for location to show the map.</Text>
+      <View style={styles.placeholder}>
+        <Text style={styles.placeholderText}>Syncing local grid...</Text>
       </View>
     );
   }
@@ -55,19 +56,22 @@ const SignalMap = ({ location, buzzes, onSelectBuzz }) => {
     longitudeDelta: 0.03,
   };
 
-  const visibleBuzzes = buzzes
-    .map(buzz => ({ buzz, display: getBuzzDisplay(buzz) }))
-    .filter(({ display }) => display.visible);
+  const visibleBuzzes = hideMarkers
+    ? []
+    : buzzes
+        .map(buzz => ({ buzz, display: getBuzzDisplay(buzz) }))
+        .filter(({ display }) => display.visible);
 
   return (
-    <View style={styles.mapCard}>
+    <View style={[styles.mapWrap, dimmed && styles.mapDimmed]}>
       <MapView
-        style={styles.map}
+        style={StyleSheet.absoluteFill}
         initialRegion={region}
         region={region}
         showsUserLocation
         showsMyLocationButton={Platform.OS === 'android'}
         provider={getMapProvider()}
+        userInterfaceStyle="dark"
       >
         {visibleBuzzes.map(({ buzz, display }) => (
           <Marker
@@ -100,38 +104,30 @@ const SignalMap = ({ location, buzzes, onSelectBuzz }) => {
           </Marker>
         ))}
       </MapView>
-      <Text style={styles.mapHint}>Tap pins for tier-gated signal details.</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  mapCard: {
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 18,
+  mapWrap: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.background,
   },
-  map: {
-    height: 280,
-    width: '100%',
+  mapDimmed: {
+    opacity: 0.35,
   },
-  mapHint: {
-    color: '#94a3b8',
-    padding: 12,
-    fontSize: 13,
-  },
-  placeholderCard: {
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    padding: 24,
+  placeholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 18,
   },
   placeholderText: {
-    color: '#cbd5e1',
-    textAlign: 'center',
+    color: '#71717a',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   auraOuter: {
     width: 56,

@@ -30,8 +30,9 @@ const formatTime = (expiresAt, now) => {
   return `${hours}:${minutes}:${seconds}`;
 };
 
-const BuzzDetailModal = ({ buzz, visible, onClose }) => {
+const BuzzDetailModal = ({ buzz, visible, onClose, onSignOut }) => {
   const insets = useSafeAreaInsets();
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordAttempt, setPasswordAttempt] = useState('');
   const [passwordError, setPasswordError] = useState(false);
@@ -40,6 +41,7 @@ const BuzzDetailModal = ({ buzz, visible, onClose }) => {
 
   useEffect(() => {
     if (!visible) {
+      setIsCheckedIn(false);
       setIsUnlocked(false);
       setPasswordAttempt('');
       setPasswordError(false);
@@ -82,6 +84,34 @@ const BuzzDetailModal = ({ buzz, visible, onClose }) => {
   };
 
   const renderBody = () => {
+    if (isCheckedIn) {
+      return (
+        <View style={styles.checkInBody}>
+          {buzz.image ? (
+            <Image
+              source={{ uri: buzz.image }}
+              style={styles.checkInBg}
+              resizeMode="cover"
+              blurRadius={Platform.OS === 'ios' ? 20 : 0}
+            />
+          ) : null}
+          <View style={styles.checkInContent}>
+            <View style={styles.checkInIconWrap}>
+              <Text style={styles.checkInIcon}>{buzz.icon || '📍'}</Text>
+            </View>
+            <Text style={styles.checkInTitle}>You're Here.</Text>
+            <Text style={styles.checkInMeta}>Confirmed: {buzz.title}</Text>
+            <TouchableOpacity style={styles.checkInPrimary} onPress={onSignOut}>
+              <Text style={styles.checkInPrimaryText}>Lock Phone & Dive In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIsCheckedIn(false)}>
+              <Text style={styles.checkInSecondary}>Return to map</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
     if (display.tier === 3 || buzz.distance > 1000) {
       return (
         <View style={styles.centeredBody}>
@@ -173,9 +203,14 @@ const BuzzDetailModal = ({ buzz, visible, onClose }) => {
           <Text style={styles.title}>{buzz.title}</Text>
           <Text style={styles.description}>{buzz.description}</Text>
           <Text style={styles.distanceMeta}>{formatDistance(buzz.distance)} away</Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={onClose}>
-            <Text style={styles.primaryButtonText}>Close</Text>
-          </TouchableOpacity>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
+              <Text style={styles.secondaryButtonText}>Close</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.primaryButton} onPress={() => setIsCheckedIn(true)}>
+              <Text style={styles.primaryButtonText}>I'm Here</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -407,12 +442,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   primaryButton: {
+    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 16,
     paddingVertical: 16,
-    paddingHorizontal: 32,
     alignItems: 'center',
-    marginTop: 8,
   },
   primaryButtonText: {
     color: '#09090b',
@@ -421,10 +455,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   secondaryButton: {
+    flex: 1,
     backgroundColor: '#27272a',
-    borderRadius: 24,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   secondaryButtonText: {
     color: '#fff',
@@ -443,6 +478,80 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  checkInBody: {
+    minHeight: 420,
+    overflow: 'hidden',
+  },
+  checkInBg: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.4,
+  },
+  checkInContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    minHeight: 420,
+  },
+  checkInIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  checkInIcon: {
+    fontSize: 36,
+  },
+  checkInTitle: {
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: -1,
+    marginBottom: 8,
+  },
+  checkInMeta: {
+    color: '#a1a1aa',
+    fontSize: 10,
+    fontFamily: 'monospace',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 28,
+  },
+  checkInPrimary: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 18,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  checkInPrimaryText: {
+    color: '#000',
+    fontWeight: '800',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  checkInSecondary: {
+    color: '#71717a',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
 

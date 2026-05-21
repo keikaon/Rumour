@@ -130,5 +130,6 @@ Run on a **physical iPhone** with Expo Go (Windows dev machine — no local iOS 
 ## Notes
 
 - API path: `GET /api/buzzes?lat=&lng=` on the backend (no Vite proxy required)
-- Tier gating, Intel Report, and secret unlock mirror `frontend/src/components/MapContainer.jsx`
+- **Map-first UI** (like web): full-screen map, **Initiate Scan** / **Leave** header, **Field Protocol** drawer for legend + profile
+- Tier gating, Intel Report, secret unlock, and check-in flow mirror `frontend/src/components/MapContainer.jsx`
 - Buzz data is **mock** by default (`USE_MOCK=true` on backend). See root `.env.example` for Firestore mode.
