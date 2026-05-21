@@ -83,8 +83,8 @@ const MapContainer = () => {
   }, [locationStatus]);
 
   const loadBuzzesFromBackend = async (lat, lng) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/buzzes?lat=${lat}&lng=${lng}`);
+      try {
+        const response = await fetch(`/api/buzzes?lat=${lat}&lng=${lng}`);
       const data = await response.json();
       const processed = data.buzzes.map(buzz => ({
         ...buzz,
@@ -123,6 +123,137 @@ const MapContainer = () => {
     }, 300);
   };
 
+  // Request geolocation with proper permission handling
+  const requestLocation = () => {
+    setLocationStatus('locating');
+    if (!navigator.geolocation) {
+      setLocationStatus('error');
+      // fallback to map center
+      const fallbackLat = 39.9334;
+      const fallbackLng = 32.8597;
+      setUserCoords({ lat: fallbackLat, lng: fallbackLng });
+      loadBuzzesFromBackend(fallbackLat, fallbackLng).then(() => {
+        setLocationStatus('success');
+        setTimeout(() => setLocationStatus('ready'), 1500);
+      });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setUserCoords({ lat, lng });
+        loadBuzzesFromBackend(lat, lng).then(() => {
+          setLocationStatus('success');
+          setTimeout(() => setLocationStatus('ready'), 1500);
+        });
+      },
+      (err) => {
+        // Permission denied — show permission overlay instead of falling back
+        if (err && err.code === 1) {
+          setLocationStatus('permission');
+        } else {
+          // other errors: fallback to map center
+          setLocationStatus('error');
+          const fallbackLat = 39.9334;
+          const fallbackLng = 32.8597;
+          setUserCoords({ lat: fallbackLat, lng: fallbackLng });
+          loadBuzzesFromBackend(fallbackLat, fallbackLng).then(() => {
+            setLocationStatus('success');
+            setTimeout(() => setLocationStatus('ready'), 1500);
+          });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const openLocationSettings = () => {
+    const ua = (navigator.userAgent || '').toLowerCase();
+    const isAndroid = /android/.test(ua);
+    const isIOS = /iphone|ipad|ipod/.test(ua);
+    const isEdge = ua.includes('edg/') || ua.includes('edga') || ua.includes('edgios');
+    const isChrome = ua.includes('chrome') || ua.includes('crios');
+    const isFirefox = ua.includes('firefox') || ua.includes('fennec') || ua.includes('fxios');
+    const isSafari = !isChrome && !isFirefox && ua.includes('safari');
+    const isOpera = ua.includes('opr/') || ua.includes('opera');
+    const isSamsung = ua.includes('samsungbrowser');
+    const isBrave = ua.includes('brave');
+    const isUC = ua.includes('ucbrowser');
+    const isWebView = ua.includes('wv') || ua.includes('webview') || (isAndroid && ua.includes('version/') && !ua.includes('chrome'));
+
+    // Build platform-specific, browser-aware guidance
+    let instructions = '';
+
+    if (isAndroid) {
+      if (isChrome) {
+        instructions = 'Chrome (Android): Tap the lock icon in the address bar → Site settings → Location → Allow. Or open Chrome → Settings → Site settings → Location and allow for this site.';
+      } else if (isSamsung) {
+        instructions = 'Samsung Internet: Menu → Settings → Sites and downloads → Site permissions → Location → Allow for this site.';
+      } else if (isFirefox) {
+        instructions = 'Firefox (Android): Tap the lock icon → Permissions → Location and allow this site, or open Firefox → Settings → Site permissions → Location.';
+      } else if (isEdge) {
+        instructions = 'Edge (Android): Open Edge → Settings → Site permissions → Location and allow for this site.';
+      } else if (isOpera) {
+        instructions = 'Opera (Android): Open Opera → Settings → Site settings → Location and allow this site.';
+      } else if (isBrave) {
+        instructions = 'Brave (Android): Tap the lock icon → Site settings → Location → Allow, or open Brave settings → Site settings → Location.';
+      } else if (isUC) {
+        instructions = 'UC Browser (Android): Open browser settings → Privacy & security → Site permissions → Location and allow this site.';
+      } else if (isWebView) {
+        instructions = 'Android WebView / in-app browser: Open device Settings → Apps → find the app (e.g., Chrome or host app) → Permissions → Location → Allow. Or open the site in a full browser.';
+      } else {
+        instructions = 'Android: Open the lock icon (left of the address bar) → Site settings → Location and allow this site, or open your browser settings → Site settings → Location.';
+      }
+      instructions += '\n\nAlso make sure Android system Location is enabled: Settings → Location.';
+    } else if (isIOS) {
+      if (isSafari) {
+        instructions = 'Safari (iOS): Open iOS Settings → Safari → Location → Set to "While Using the App" or open Settings → Privacy & Security → Location Services → Safari Websites → Allow.';
+      } else if (isChrome) {
+        instructions = 'Chrome (iOS / CriOS): iOS controls Chrome permissions. Open iOS Settings → Chrome → Location → While Using the App.';
+      } else if (isFirefox) {
+        instructions = 'Firefox (iOS): Open iOS Settings → Firefox → Location → While Using the App.';
+      } else if (isWebView) {
+        instructions = 'iOS WebView / in-app browser: Open iOS Settings → Privacy & Security → Location Services and ensure the host app has Location permission, or open the site in Safari.';
+      } else {
+        instructions = 'iOS: Open the iOS Settings app → find your browser (Safari/Chrome/Firefox) → Location → While Using the App; also ensure Location Services is enabled.';
+      }
+      instructions += '\n\nTip: On iOS you may need to change the permission from the system Settings app rather than within the browser.';
+    } else {
+      // Desktop/unknown fallback
+      if (isEdge) {
+        instructions = 'Edge: Open Edge → Settings → Cookies and site permissions → Location → Allow for this site.';
+      } else if (isChrome) {
+        instructions = 'Chrome: Open Chrome → Settings → Privacy and security → Site Settings → Location → Allow for this site.';
+      } else if (isFirefox) {
+        instructions = 'Firefox: Open Firefox → Settings → Privacy & Security → Permissions → Location → Settings... and allow this site.';
+      } else if (isOpera) {
+        instructions = 'Opera: Open Opera → Settings → Advanced → Privacy & security → Site settings → Location → Allow for this site.';
+      } else if (isSafari) {
+        instructions = 'Safari (macOS): Open Safari → Preferences → Websites → Location and allow this site, or use System Settings → Privacy & Security → Location Services.';
+      } else {
+        instructions = 'Open your browser settings and enable Location/Geolocation permissions for this site.';
+      }
+      instructions += '\n\nAfter enabling Location, return to this page and click Retry.';
+    }
+
+    // Try deep-link for desktop browsers where supported. Mobile browsers usually do not allow deep-links.
+    try {
+      if (!isAndroid && !isIOS) {
+        if (isEdge) window.open('edge://settings/content/location', '_blank');
+        else if (isChrome) window.open('chrome://settings/content/location', '_blank');
+        else if (isFirefox) window.open('about:preferences#privacy', '_blank');
+        else if (isOpera) window.open('opera://settings/content/location', '_blank');
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Provide clear, actionable guidance to the user.
+    alert(instructions + '\n\nIf you still see issues, try opening this site in the browser\'s main app (not an in-app browser) and retry.');
+  };
+
   useEffect(() => {
     if (mapRef.current) return;
     const map = new mapboxgl.Map({
@@ -143,19 +274,8 @@ const MapContainer = () => {
     map.on('load', () => {
       mapRef.current = map;
       geolocate.trigger();
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setUserCoords({ lat, lng });
-          loadBuzzesFromBackend(lat, lng).then(() => {
-            setLocationStatus('success');
-            setTimeout(() => setLocationStatus('ready'), 1500);
-          });
-        },
-        () => { setLocationStatus('error'); },
-        { enableHighAccuracy: true }
-      );
+      // Request location (handles permission vs other errors)
+      requestLocation();
     });
 
     return () => { map.remove(); mapRef.current = null; };
@@ -273,6 +393,21 @@ const MapContainer = () => {
             ) : null}
           </div>
 
+        </div>
+      )}
+
+      {/* ⚠️ PERMISSION ERROR OVERLAY */}
+      {locationStatus === 'permission' && (
+        <div className="absolute inset-0 z-[90] flex items-center justify-center bg-black/85 pointer-events-auto">
+          <div className="max-w-md w-full mx-6 p-8 bg-zinc-900 border border-zinc-800 rounded-2xl text-center shadow-2xl">
+            <h2 className="text-2xl font-black mb-3">Cannot get location</h2>
+            <p className="text-zinc-400 mb-6">Rumour requires access to your device's location to show nearby events. Please allow location access for this site.</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => requestLocation()} className="px-4 py-2 bg-green-500 text-black rounded-full font-black">Retry / Request Permission</button>
+              <button onClick={() => openLocationSettings()} className="px-4 py-2 bg-zinc-800 text-white rounded-full">Open Location Settings</button>
+            </div>
+            <p className="text-xs text-zinc-600 mt-4">If you previously blocked the permission, open your browser's site settings and allow Location/Geolocation, then retry.</p>
+          </div>
         </div>
       )}
 
