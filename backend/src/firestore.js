@@ -51,8 +51,18 @@ function docToBuzz(doc) {
     isSecret: data.isSecret ?? false,
     password: data.password,
     isVerifiedSource: data.isVerifiedSource ?? false,
+    creatorId: data.creatorId,
+    createdAt: data.createdAt?.toMillis?.() ?? data.createdAt,
+    status: data.status,
+    moderationStatus: data.moderationStatus,
     expiresAt,
   };
+}
+
+function isActiveBuzz(data) {
+  if (data.status && data.status !== 'active') return false;
+  if (data.moderationStatus === 'rejected') return false;
+  return true;
 }
 
 async function fetchBuzzesFromFirestore() {
@@ -68,7 +78,21 @@ async function fetchBuzzesFromFirestore() {
 
   if (snapshot.empty) return [];
 
-  return snapshot.docs.map(docToBuzz);
+  return snapshot.docs.filter(doc => isActiveBuzz(doc.data())).map(docToBuzz);
 }
 
-module.exports = { fetchBuzzesFromFirestore, initFirestore };
+async function createBuzzInFirestore(buzzData) {
+  const firestore = initFirestore();
+  if (!firestore) return null;
+
+  const { durationHours, ...rest } = buzzData;
+  const docRef = await firestore.collection('buzzes').add({
+    ...rest,
+    expiresAt: admin.firestore.Timestamp.fromMillis(rest.expiresAt),
+    createdAt: admin.firestore.Timestamp.fromMillis(rest.createdAt),
+  });
+
+  return { id: docRef.id, ...buzzData };
+}
+
+module.exports = { fetchBuzzesFromFirestore, createBuzzInFirestore, initFirestore };

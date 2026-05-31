@@ -17,6 +17,7 @@ Default: `http://0.0.0.0:5000`
 |--------|------|-------------|
 | GET | `/api/health` | Status + `dataSource` (`mock` or `firestore`) |
 | GET | `/api/buzzes?lat=&lng=` | Active buzzes (mock or Firestore) |
+| POST | `/api/buzzes` | Create buzz (Firebase Bearer token required) |
 
 ## Environment
 

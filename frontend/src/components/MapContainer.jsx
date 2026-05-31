@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { auth } from '../firebase';
 import ProfileLegend from './ProfileLegend'; // Add this near the other imports
+import { CreateBuzzFeature } from '../features/createBuzz';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
@@ -82,20 +83,118 @@ const MapContainer = () => {
     }
   }, [locationStatus]);
 
+  const generateLocalMockData = (lat, lng) => {
+    const now = Date.now();
+    const ONE_HOUR = 3600000;
+
+    return [
+      { id: 1, type: 'Party', title: 'Faraway Festival', lat: lat + 0.0666, lng: lng + 0.0, expiresAt: now + ONE_HOUR * 5 },
+      { id: 2, type: 'Party', title: 'Distant Rave', lat: lat + 0.0350, lng: lng + 0.0050, expiresAt: now + ONE_HOUR * 3 },
+      { id: 21, type: 'Art', title: 'Distant Exhibit', lat: lat + 0.0420, lng: lng - 0.0030, expiresAt: now + ONE_HOUR * 2.5 },
+      { id: 22, type: 'Music', title: 'Secret Gig', lat: lat + 0.0290, lng: lng + 0.0080, expiresAt: now + ONE_HOUR * 1.5 },
+      { id: 23, type: 'Gaming', title: 'LAN Party', lat: lat + 0.0310, lng: lng - 0.0070, expiresAt: now + ONE_HOUR * 4 },
+      { id: 24, type: 'Food', title: 'Pop-up Kitchen', lat: lat + 0.0380, lng: lng + 0.0090, expiresAt: now + ONE_HOUR * 2 },
+      {
+        id: 3,
+        type: 'Art',
+        icon: '🎨',
+        lat: lat + 0.0150,
+        lng: lng + 0.0100,
+        zone: 'Kavaklıdere Arts District',
+        teaser: 'Bring your own spray paint. Canvas provided.',
+        title: 'Street Mural Unveiling',
+        host: '@urban_canvas',
+        description: 'Live painting session finishing up our newest street piece.',
+        image: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=500&q=80',
+        expiresAt: now + ONE_HOUR * 2.2,
+      },
+      {
+        id: 4,
+        type: 'Party',
+        icon: '🍸',
+        lat: lat - 0.0050,
+        lng: lng + 0.0050,
+        zone: 'Skyline Towers',
+        teaser: 'Sunset mixer. Tech house. Dress to impress.',
+        title: 'Rooftop Mixer',
+        host: '@skyline_events',
+        description: 'Exclusive sunset mixer. Good vibes and networking.',
+        image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80',
+        expiresAt: now + ONE_HOUR * 0.8,
+      },
+      {
+        id: 5,
+        type: 'Music',
+        title: 'Local Indie Gallery',
+        icon: '🎸',
+        isSecret: false,
+        lat: lat - 0.0006,
+        lng: lng - 0.0007,
+        zone: 'Çankaya Center',
+        teaser: 'Acoustic sets and local student art.',
+        host: '@çankaya_arts',
+        description: 'A pop-up visual arts gallery featuring 5 local university students. Wine and cheese provided.',
+        image: 'https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=500&q=80',
+        isVerifiedSource: true,
+        expiresAt: now + ONE_HOUR * 3.5,
+      },
+      {
+        id: 6,
+        type: 'Party',
+        title: 'Underground Rave',
+        icon: '🕺',
+        isSecret: true,
+        password: 'Fidelio!',
+        lat: lat + 0.0005,
+        lng: lng + 0.0008,
+        zone: 'Industrial Alleys',
+        teaser: 'Industrial techno all night. Entrance through the alleyway door.',
+        host: '@unknown_frequency',
+        description: 'Industrial techno all night. Entrance is through the alleyway door. Do not post photos.',
+        image: 'https://images.unsplash.com/photo-1574169208507-84376144848b?w=500&q=80',
+        isVerifiedSource: false,
+        expiresAt: now + ONE_HOUR * 5.5,
+      },
+    ];
+  };
+
   const loadBuzzesFromBackend = async (lat, lng) => {
-      try {
-        const response = await fetch(`/api/buzzes?lat=${lat}&lng=${lng}`);
-      const data = await response.json();
-      const processed = data.buzzes.map(buzz => ({
+    const fallback = generateLocalMockData(lat, lng)
+      .map(buzz => ({
         ...buzz,
-        distance: getDistanceInMeters(lat, lng, buzz.lat, buzz.lng)
-      })).sort((a, b) => a.distance - b.distance);
-      
+        distance: getDistanceInMeters(lat, lng, buzz.lat, buzz.lng),
+      }))
+      .sort((a, b) => a.distance - b.distance);
+
+    try {
+      const response = await fetch(`/api/buzzes?lat=${lat}&lng=${lng}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const list = Array.isArray(data?.buzzes) ? data.buzzes : [];
+      if (list.length === 0) {
+        throw new Error('No buzzes returned from backend');
+      }
+
+      const processed = list
+        .map(buzz => ({
+          ...buzz,
+          distance: getDistanceInMeters(lat, lng, buzz.lat, buzz.lng),
+        }))
+        .sort((a, b) => a.distance - b.distance);
+
+      if (processed.length === 0) {
+        throw new Error('No buzzes returned from backend');
+      }
+
       setBuzzes(processed);
       return processed;
     } catch (error) {
-      console.error("Fetch failed", error);
-      return [];
+      console.error('Fetch failed', error);
+      setBuzzes(fallback);
+      return fallback;
     }
   };
 
@@ -606,6 +705,14 @@ const MapContainer = () => {
 
       {/* FIELD GUIDE DRAWER */}
       <ProfileLegend isOpen={isLegendOpen} onClose={() => setIsLegendOpen(false)} />
+
+      {locationStatus === 'ready' && userCoords ? (
+        <CreateBuzzFeature
+          location={userCoords}
+          locationReady={locationStatus === 'ready'}
+          onSuccess={() => loadBuzzesFromBackend(userCoords.lat, userCoords.lng)}
+        />
+      ) : null}
 
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }

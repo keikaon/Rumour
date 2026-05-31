@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { fetchBuzzesFromFirestore } = require('./firestore');
+const { getMockUserBuzzes } = require('./services/buzzService');
+const buzzRoutes = require('./routes/buzzes');
 
 dotenv.config();
 
@@ -91,7 +93,11 @@ const generateDynamicMockData = (lat, lng) => {
 
 async function resolveBuzzes(lat, lng) {
   if (USE_MOCK) {
-    return { buzzes: generateDynamicMockData(lat, lng), source: 'mock' };
+    const userCreated = getMockUserBuzzes();
+    return {
+      buzzes: [...generateDynamicMockData(lat, lng), ...userCreated],
+      source: 'mock',
+    };
   }
 
   try {
@@ -116,6 +122,8 @@ app.get('/api/health', (req, res) =>
     useMock: USE_MOCK,
   })
 );
+
+app.use('/api/buzzes', buzzRoutes);
 
 app.get('/api/buzzes', async (req, res) => {
   const userLat = parseFloat(req.query.lat);

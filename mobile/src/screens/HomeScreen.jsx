@@ -13,6 +13,7 @@ import BuzzDetailModal from '../components/BuzzDetailModal';
 import FieldGuideDrawer from '../components/FieldGuideDrawer';
 import IntelReportModal from '../components/IntelReportModal';
 import SignalMap from '../components/SignalMap';
+import { CreateBuzzFeature } from '../features/createBuzz';
 import { getBackendUrl } from '../config/backendUrl';
 import { processBuzzes } from '../lib/proximity';
 import colors from '../theme/colors';
@@ -75,6 +76,72 @@ const HomeScreen = ({ user, onSignOut }) => {
     }
   };
 
+  const generateLocalMockBuzzes = (lat, lng) => {
+    const now = Date.now();
+    const ONE_HOUR = 3600000;
+
+    return [
+      {
+        id: 101,
+        type: 'Art',
+        icon: '🎨',
+        title: 'Street Mural Unveiling',
+        zone: 'Kavaklıdere Arts District',
+        teaser: 'Bring your own spray paint. Canvas provided.',
+        host: '@urban_canvas',
+        description: 'Live painting session finishing up our newest street piece.',
+        image: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=500&q=80',
+        lat: lat + 0.015,
+        lng: lng + 0.01,
+        expiresAt: now + ONE_HOUR * 2.2,
+      },
+      {
+        id: 102,
+        type: 'Party',
+        icon: '🍸',
+        title: 'Rooftop Mixer',
+        zone: 'Skyline Towers',
+        teaser: 'Sunset mixer. Tech house. Dress to impress.',
+        host: '@skyline_events',
+        description: 'Exclusive sunset mixer. Good vibes and networking.',
+        image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80',
+        lat: lat - 0.005,
+        lng: lng + 0.005,
+        expiresAt: now + ONE_HOUR * 0.8,
+      },
+      {
+        id: 103,
+        type: 'Music',
+        icon: '🎸',
+        title: 'Local Indie Gallery',
+        zone: 'Çankaya Center',
+        teaser: 'Acoustic sets and local student art.',
+        host: '@çankaya_arts',
+        description: 'A pop-up visual arts gallery featuring 5 local university students.',
+        image: 'https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=500&q=80',
+        lat: lat - 0.0006,
+        lng: lng - 0.0007,
+        expiresAt: now + ONE_HOUR * 3.5,
+      },
+      {
+        id: 104,
+        type: 'Party',
+        icon: '🕺',
+        title: 'Underground Rave',
+        zone: 'Industrial Alleys',
+        teaser: 'Industrial techno all night. Entrance through the alleyway door.',
+        host: '@unknown_frequency',
+        description: 'Industrial techno all night. Do not post photos.',
+        image: 'https://images.unsplash.com/photo-1574169208507-84376144848b?w=500&q=80',
+        isSecret: true,
+        password: 'Fidelio!',
+        lat: lat + 0.0005,
+        lng: lng + 0.0008,
+        expiresAt: now + ONE_HOUR * 5.5,
+      },
+    ];
+  };
+
   const fetchBuzzes = async coords => {
     try {
       const response = await fetch(
@@ -88,17 +155,25 @@ const HomeScreen = ({ user, onSignOut }) => {
       const data = await response.json();
       const list = Array.isArray(data?.buzzes) ? data.buzzes : [];
       const processed = processBuzzes(list, coords.latitude, coords.longitude);
+      if (processed.length === 0) {
+        throw new Error('No buzzes returned from backend');
+      }
       setBuzzes(processed);
       setError('');
       return processed;
     } catch (err) {
-      setBuzzes([]);
       const hint =
         Platform.OS === 'ios' && !backendUrl.includes('192.168') && !backendUrl.includes('10.')
           ? " Set EXPO_PUBLIC_BACKEND_URL to your PC's LAN IP (port 5000)."
           : '';
-      setError(`Failed to load nearby signals.${hint}`);
-      return [];
+      const fallback = processBuzzes(
+        generateLocalMockBuzzes(coords.latitude, coords.longitude),
+        coords.latitude,
+        coords.longitude
+      );
+      setBuzzes(fallback);
+      setError(`Unable to reach backend. Showing offline demo signals.${hint}`);
+      return fallback;
     }
   };
 
@@ -229,6 +304,15 @@ const HomeScreen = ({ user, onSignOut }) => {
             <Text style={styles.fieldProtocolVersion}>v3.0.48</Text>
           </View>
         </TouchableOpacity>
+      ) : null}
+
+      {isReady ? (
+        <CreateBuzzFeature
+          backendUrl={backendUrl}
+          location={location}
+          locationReady={isReady}
+          onSuccess={() => location && fetchBuzzes(location)}
+        />
       ) : null}
 
       {error && isReady ? (
