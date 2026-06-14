@@ -1,4 +1,4 @@
-const { createBuzzInFirestore } = require('../firestore');
+const { createBuzzInFirestore, voteOnBuzz, removeVote, flagBuzz } = require('../firestore');
 const { moderateBuzzContent } = require('../moderation/gemini');
 const { isWithinMeters } = require('./proximity');
 
@@ -108,11 +108,19 @@ async function createBuzz(body, user, { useMock }) {
     host,
   });
 
-  if (!moderation.approved) {
-    throw new ModerationError(
-      moderation.reason || 'Content violates community guidelines.',
-      moderation.categories
-    );
+  // Handle moderation outcomes:
+  // - approved === true -> proceed
+  // - approved === false -> reject with ModerationError
+  // - approved === 'pending' (or other non-boolean) -> save but mark moderation pending
+  let moderationStatus = 'approved';
+  let moderationReason = null;
+  if (moderation.approved === true) {
+    moderationStatus = 'approved';
+  } else if (moderation.approved === false) {
+    throw new ModerationError(moderation.reason || 'Content violates community guidelines.', moderation.categories);
+  } else {
+    moderationStatus = 'pending';
+    moderationReason = moderation.reason || 'Pending manual moderation';
   }
 
   const now = Date.now();
@@ -124,9 +132,9 @@ async function createBuzz(body, user, { useMock }) {
     creatorId: user.uid,
     createdAt: now,
     expiresAt,
-    status: 'active',
-    moderationStatus: 'approved',
-    moderationReason: null,
+    status: moderationStatus === 'approved' ? 'active' : 'pending',
+    moderationStatus,
+    moderationReason,
     isVerifiedSource: false,
   };
 
@@ -150,10 +158,82 @@ function getMockUserBuzzes() {
   return [...mockUserBuzzes];
 }
 
+// Seed demo user buzzes for local/mock mode. Idempotent.
+function seedDemoBuzzes() {
+  if (mockUserBuzzes.length > 0) return;
+  const now = Date.now();
+  const ONE_HOUR = 3600000;
+  mockUserBuzzes.push(
+    {
+      id: `mock-user-1`,
+      type: 'Party',
+      icon: '🕺',
+      title: 'Demo Rooftop Mixer',
+      zone: 'Demo District',
+      teaser: 'Sunset mixer — demo content',
+      host: '@demo_host',
+      description: 'Demonstration event to showcase Rumour features.',
+      image: null,
+      lat: 0.0,
+      lng: 0.0,
+      creatorId: 'demo-user',
+      createdAt: now,
+      expiresAt: now + ONE_HOUR * 12,
+      status: 'active',
+      moderationStatus: 'approved',
+    },
+    {
+      id: `mock-user-2`,
+      type: 'Art',
+      icon: '🎨',
+      title: 'Demo Street Mural',
+      zone: 'Demo Alley',
+      teaser: 'Live painting — demo',
+      host: '@demo_artist',
+      description: 'A short demo description for showcase.',
+      image: null,
+      lat: 0.0,
+      lng: 0.001,
+      creatorId: 'demo-user',
+      createdAt: now,
+      expiresAt: now + ONE_HOUR * 6,
+      status: 'active',
+      moderationStatus: 'approved',
+    }
+  );
+}
+
 module.exports = {
   createBuzz,
   getMockUserBuzzes,
   ValidationError,
   ModerationError,
   VALID_TYPES,
+  vote: async (buzzId, userId, type) => {
+    try {
+      return await voteOnBuzz(buzzId, userId, type);
+    } catch (err) {
+      const e = new Error(err.message || 'Vote failed');
+      e.status = 400;
+      throw e;
+    }
+  },
+  removeVote: async (buzzId, userId) => {
+    try {
+      return await removeVote(buzzId, userId);
+    } catch (err) {
+      const e = new Error(err.message || 'Remove vote failed');
+      e.status = err.status || 400;
+      throw e;
+    }
+  },
+  flag: async (buzzId, userId, userLat, userLng) => {
+    try {
+      return await flagBuzz(buzzId, userId, userLat, userLng);
+    } catch (err) {
+      const e = new Error(err.message || 'Flag failed');
+      e.status = err.status || 400;
+      throw e;
+    }
+  },
 };

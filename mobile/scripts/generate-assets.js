@@ -2,9 +2,9 @@
  * Minimal PNG generator for Expo icon/splash (no dependencies).
  * Run: node scripts/generate-assets.js
  */
-const fs = require('fs');
-const path = require('path');
-const zlib = require('zlib');
+const fs = require("fs");
+const path = require("path");
+const zlib = require("zlib");
 
 function crc32(buf) {
   let c = 0xffffffff;
@@ -48,14 +48,24 @@ function png(width, height, r, g, b) {
   const idat = zlib.deflateSync(raw, { level: 9 });
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', idat),
-    chunk('IEND', Buffer.alloc(0)),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", idat),
+    chunk("IEND", Buffer.alloc(0)),
   ]);
 }
 
-const assetsDir = path.join(__dirname, '..', 'assets');
-fs.mkdirSync(assetsDir, { recursive: true });
-fs.writeFileSync(path.join(assetsDir, 'icon.png'), png(1024, 1024, 9, 9, 11));
-fs.writeFileSync(path.join(assetsDir, 'splash.png'), png(1284, 2778, 9, 9, 11));
-console.log('Wrote icon.png and splash.png');
+const assetsDir = path.join(__dirname, "..", "assets");
+const iconPath = path.join(assetsDir, "icon.png");
+const splashPath = path.join(assetsDir, "splash.png");
+
+try {
+  fs.mkdirSync(assetsDir, { recursive: true });
+  fs.writeFileSync(iconPath, png(1024, 1024, 9, 9, 11));
+  fs.writeFileSync(splashPath, png(1284, 2778, 9, 9, 11));
+  console.log(
+    `Wrote ${path.relative(process.cwd(), iconPath)} and ${path.relative(process.cwd(), splashPath)}`,
+  );
+} catch (err) {
+  console.error("Failed to generate assets:", err.message);
+  process.exit(1);
+}

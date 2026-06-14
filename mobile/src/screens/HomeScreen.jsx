@@ -342,6 +342,7 @@ const HomeScreen = ({ user, onSignOut }) => {
         visible={!!selectedBuzz}
         onClose={closeEverything}
         onSignOut={onSignOut}
+        location={location}
       />
     </View>
   );

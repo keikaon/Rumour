@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const { fetchBuzzesFromFirestore } = require('./firestore');
 const { getMockUserBuzzes } = require('./services/buzzService');
 const buzzRoutes = require('./routes/buzzes');
+const adminRoutes = require('./routes/admin');
+const usersRoutes = require('./routes/users');
 
 dotenv.config();
 
@@ -124,6 +126,8 @@ app.get('/api/health', (req, res) =>
 );
 
 app.use('/api/buzzes', buzzRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/users', usersRoutes);
 
 app.get('/api/buzzes', async (req, res) => {
   const userLat = parseFloat(req.query.lat);
@@ -133,6 +137,17 @@ app.get('/api/buzzes', async (req, res) => {
   const { buzzes, source } = await resolveBuzzes(userLat, userLng);
   res.json({ buzzes, source });
 });
+
+  // Seed demo data when running in mock mode for demoing the app locally
+  if (USE_MOCK) {
+    try {
+      const { seedDemoBuzzes } = require('./services/buzzService');
+      seedDemoBuzzes();
+      console.log('[RUMOUR] Demo buzzes seeded for mock mode');
+    } catch (err) {
+      console.warn('[RUMOUR] Failed to seed demo buzzes:', err.message || err);
+    }
+  }
 
 app.get('/', (req, res) => {
   res.send(
@@ -144,4 +159,11 @@ const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`📡 [RUMOUR ENGINE] Transmitting on ${HOST}:${PORT} (USE_MOCK=${USE_MOCK})`);
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('[RUMOUR] Unhandled error:', err && err.stack ? err.stack : err);
+  const status = err && err.status ? err.status : 500;
+  res.status(status).json({ error: err && err.message ? err.message : 'Server error' });
 });

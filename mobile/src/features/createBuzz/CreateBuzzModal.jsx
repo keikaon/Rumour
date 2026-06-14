@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -20,13 +20,23 @@ const CreateBuzzModal = ({ visible, onClose, backendUrl, location, onSuccess }) 
   const scrollRef = useRef(null);
   const teaserRef = useRef(null);
   const descriptionRef = useRef(null);
-  const zoneRef = useRef(null);
   const passwordRef = useRef(null);
   const keyboardHeight = useKeyboardInset();
+  const [lockedLocation, setLockedLocation] = useState(null);
+
+  useEffect(() => {
+    if (visible) {
+      // capture the current user location at the moment the create sheet opens
+      setLockedLocation(location || null);
+    } else {
+      setLockedLocation(null);
+    }
+  }, [visible, location]);
 
   const { form, updateField, resetForm, submit, submitting, error } = useCreateBuzz({
     backendUrl,
-    location,
+    // prefer the locked creation location; fall back to live location
+    location: lockedLocation || location,
     onSuccess: () => {
       onSuccess?.();
       onClose();
@@ -138,25 +148,11 @@ const CreateBuzzModal = ({ visible, onClose, backendUrl, location, onSuccess }) 
               blurOnSubmit={false}
               onChangeText={v => updateField('description', v)}
               onFocus={scrollToEnd}
-              onSubmitEditing={() => zoneRef.current?.focus()}
-            />
-
-            <Text style={styles.label}>Zone name</Text>
-            <TextInput
-              ref={zoneRef}
-              style={styles.input}
-              placeholder="Neighborhood or district"
-              placeholderTextColor="#9ca3af"
-              keyboardAppearance="dark"
-              value={form.zone}
-              maxLength={MAX_LENGTHS.zone}
-              returnKeyType={form.isSecret ? 'next' : 'done'}
-              onChangeText={v => updateField('zone', v)}
-              onFocus={scrollToEnd}
               onSubmitEditing={() => {
                 if (form.isSecret) passwordRef.current?.focus();
               }}
             />
+
 
             <Text style={styles.label}>Signal duration</Text>
             <View style={styles.sliderHeader}>

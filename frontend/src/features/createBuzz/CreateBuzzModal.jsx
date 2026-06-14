@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BUZZ_TYPES, DURATION_OPTIONS, MAX_LENGTHS } from './createBuzzTypes';
 import useCreateBuzz from './useCreateBuzz';
 
@@ -6,8 +6,15 @@ const inputClass =
   'w-full p-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:ring-2 focus:ring-white outline-none';
 
 const CreateBuzzModal = ({ visible, onClose, location, onSuccess }) => {
+  const [lockedLocation, setLockedLocation] = useState(null);
+
+  useEffect(() => {
+    if (visible) setLockedLocation(location || null);
+    else setLockedLocation(null);
+  }, [visible, location]);
+
   const { form, updateField, resetForm, submit, submitting, error } = useCreateBuzz({
-    location,
+    location: lockedLocation || location,
     onSuccess: () => {
       onSuccess?.();
       onClose();
@@ -120,18 +127,7 @@ const CreateBuzzModal = ({ visible, onClose, location, onSuccess }) => {
               />
             </div>
 
-            <div>
-              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">
-                Zone name
-              </label>
-              <input
-                className={inputClass}
-                placeholder="Neighborhood or district"
-                value={form.zone}
-                maxLength={MAX_LENGTHS.zone}
-                onChange={e => updateField('zone', e.target.value)}
-              />
-            </div>
+            {/* Zone name removed — signals locked to GPS coordinates */}
 
             <div>
               <div className="flex items-center justify-between gap-4 mb-3">

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { auth } from '../firebase';
-import ProfileLegend from './ProfileLegend'; // Add this near the other imports
+import ProfileLegend from './ProfileLegend';
 import { CreateBuzzFeature } from '../features/createBuzz';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -49,6 +49,7 @@ const MapContainer = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [hostReputation, setHostReputation] = useState(null);
 
   // 📡 SCANNING LOGIC
   const [isScanning, setIsScanning] = useState(false);
@@ -435,7 +436,90 @@ const MapContainer = () => {
     setIsInputFocused(false);
     setPasswordError(false);
     setShowIntelReport(false);
+    setHostReputation(null);
   };
+
+  const getIdToken = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return null;
+      return await user.getIdToken();
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const voteBuzz = async (buzzId, type) => {
+    const token = await getIdToken();
+    const res = await fetch(`/api/buzzes/${buzzId}/vote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ type }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Vote failed');
+    }
+    const data = await res.json();
+    return data.vote;
+  };
+
+  const unvoteBuzz = async (buzzId) => {
+    const token = await getIdToken();
+    const res = await fetch(`/api/buzzes/${buzzId}/vote`, {
+      method: 'DELETE',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Remove vote failed');
+    }
+    const data = await res.json();
+    return data.result;
+  };
+
+  const reportBuzz = async (buzzId) => {
+    const token = await getIdToken();
+    if (!userCoords) {
+      throw new Error('Current location required to report a signal.');
+    }
+    const res = await fetch(`/api/buzzes/${buzzId}/flag`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ userLat: userCoords.lat, userLng: userCoords.lng }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Report failed');
+    }
+    const data = await res.json();
+    return data.report;
+  };
+
+  const fetchHostReputation = async (userId) => {
+    if (!userId) return null;
+    try {
+      const token = await getIdToken();
+      const res = await fetch(`/api/users/${userId}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+      if (!res.ok) return null;
+      const d = await res.json();
+      setHostReputation(d.reputation ?? 0);
+      return d.reputation ?? 0;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (selectedBuzz && selectedBuzz.creatorId) {
+      fetchHostReputation(selectedBuzz.creatorId);
+    } else {
+      setHostReputation(null);
+    }
+  }, [selectedBuzz]);
 
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-zinc-950 text-white font-sans antialiased">
@@ -651,7 +735,7 @@ const MapContainer = () => {
                           </div>
                        </div>
                      ) : (
-                       <div>
+                       <div className="flex flex-col h-full">
                          <div className="w-full aspect-[4/5] bg-cover bg-center relative" style={{ backgroundImage: `url(${selectedBuzz.image})` }}>
                             <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent" />
                             <div className="absolute top-6 left-6 flex items-center gap-2 px-3 py-1.5 rounded-full border bg-black/60 border-white/20 text-white backdrop-blur-md">
@@ -659,8 +743,8 @@ const MapContainer = () => {
                                <span className="text-[10px] font-mono font-black tracking-widest">{formatTime(selectedBuzz.expiresAt)}</span>
                             </div>
                          </div>
-                         <div className="p-8 bg-zinc-900">
-                            <div className="flex items-center gap-3 mb-2">
+                         <div className="p-6 bg-zinc-900 flex flex-col">
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
                               <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">{selectedBuzz.host}</p>
                               {selectedBuzz.isVerifiedSource && (
                                 <div className="bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
@@ -668,12 +752,57 @@ const MapContainer = () => {
                                   <span className="text-cyan-400 text-[8px] font-black uppercase tracking-widest">Verified</span>
                                 </div>
                               )}
+                              <div className="bg-red-500/10 border border-red-500/30 text-red-300 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">
+                                ⚠ {selectedBuzz.flags || 0} flagged
+                              </div>
                             </div>
-                            <h2 className="text-3xl font-black text-white leading-tight uppercase tracking-tighter">{selectedBuzz.title}</h2>
-                            <p className="text-zinc-400 text-sm mt-5 leading-relaxed">{selectedBuzz.description}</p>
-                            <div className="mt-10 pt-8 border-t border-zinc-800 flex gap-4">
-                               <button onClick={closeEverything} className="flex-1 bg-zinc-800 text-white py-4 rounded-2xl font-black text-[10px] uppercase transition-all hover:bg-zinc-700">Close</button>
-                               <button onClick={() => setIsCheckedIn(true)} className="flex-1 bg-white text-black py-4 rounded-2xl font-black text-[10px] uppercase shadow-2xl transition-all hover:bg-zinc-200">I'm Here</button>
+                            <h2 className="text-2xl font-black text-white leading-tight uppercase tracking-tighter mb-3">{selectedBuzz.title}</h2>
+                            <p className="text-zinc-400 text-sm mb-4 leading-relaxed flex-1">{selectedBuzz.description}</p>
+                            <div className="mt-auto pt-4 border-t border-zinc-800 space-y-3">
+                              <div className="flex gap-2">
+                                <button onClick={closeEverything} className="flex-1 bg-zinc-800 text-white py-2 rounded-lg font-black text-[9px] uppercase transition-all hover:bg-zinc-700">Close</button>
+                                <button onClick={() => setIsCheckedIn(true)} className="flex-1 bg-white text-black py-2 rounded-lg font-black text-[9px] uppercase shadow-lg transition-all hover:bg-zinc-200">I'm Here</button>
+                              </div>
+                              <div className="flex gap-2 flex-wrap">
+                                <button onClick={async () => {
+                                  try {
+                                    await voteBuzz(selectedBuzz.id, 'up');
+                                    setSelectedBuzz(prev => ({ ...prev, upvotes: (prev.upvotes||0)+1 }));
+                                    setBuzzes(prev => prev.map(b => b.id === selectedBuzz.id ? { ...b, upvotes: (b.upvotes||0)+1 } : b));
+                                    if (selectedBuzz?.creatorId) await fetchHostReputation(selectedBuzz.creatorId);
+                                  } catch (e) { alert(e.message); }
+                                }} className="px-3 py-1.5 bg-green-500 text-black rounded-md font-black text-[8px]">↑</button>
+                                <button onClick={async () => {
+                                  try {
+                                    await voteBuzz(selectedBuzz.id, 'down');
+                                    setSelectedBuzz(prev => ({ ...prev, downvotes: (prev.downvotes||0)+1 }));
+                                    setBuzzes(prev => prev.map(b => b.id === selectedBuzz.id ? { ...b, downvotes: (b.downvotes||0)+1 } : b));
+                                    if (selectedBuzz?.creatorId) await fetchHostReputation(selectedBuzz.creatorId);
+                                  } catch (e) { alert(e.message); }
+                                }} className="px-3 py-1.5 bg-red-500 text-white rounded-md font-black text-[8px]">↓</button>
+                                <button onClick={async () => {
+                                  try {
+                                    await unvoteBuzz(selectedBuzz.id);
+                                    setSelectedBuzz(prev => ({ ...prev, upvotes: Math.max((prev.upvotes||0)-1,0), downvotes: Math.max((prev.downvotes||0)-1,0) }));
+                                    setBuzzes(prev => prev.map(b => b.id === selectedBuzz.id ? { ...b, upvotes: Math.max((b.upvotes||0)-1,0), downvotes: Math.max((b.downvotes||0)-1,0) } : b));
+                                    if (selectedBuzz?.creatorId) await fetchHostReputation(selectedBuzz.creatorId);
+                                  } catch (e) { alert(e.message); }
+                                }} className="px-3 py-1.5 bg-zinc-700 text-white rounded-md font-black text-[8px]">✕</button>
+                                <button onClick={async () => {
+                                  try {
+                                    const report = await reportBuzz(selectedBuzz.id);
+                                    alert(`Reported signal. Flags: ${report.flags}${report.removed ? ' — removed from map' : ''}`);
+                                    if (report.removed) {
+                                      setSelectedBuzz(null);
+                                      setBuzzes(prev => prev.filter(b => b.id !== selectedBuzz.id));
+                                    } else {
+                                      setSelectedBuzz(prev => ({ ...prev, flags: (prev.flags || 0) + 1 }));
+                                      setBuzzes(prev => prev.map(b => b.id === selectedBuzz.id ? { ...b, flags: (b.flags || 0) + 1 } : b));
+                                    }
+                                  } catch (e) { alert(e.message); }
+                                }} className="px-3 py-1.5 bg-orange-500 text-black rounded-md font-black text-[8px]">!</button>
+                                <span className="text-[9px] text-zinc-400 ml-auto self-center">Rep: {hostReputation ?? '—'}</span>
+                              </div>
                             </div>
                          </div>
                        </div>

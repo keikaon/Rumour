@@ -10,3 +10,5 @@ build/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+backend/serviceAccountKey.json
+backend/.env

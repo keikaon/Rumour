@@ -1,13 +1,14 @@
 import { auth } from '../../firebase';
 
-export async function postCreateBuzz(payload) {
+export async function postCreateBuzz(payload, backendUrl = '') {
   const user = auth.currentUser;
   if (!user) {
     throw new Error('You must be signed in to start a signal.');
   }
 
+  const baseUrl = backendUrl ? backendUrl.replace(/\/$/, '') : '';
   const token = await user.getIdToken();
-  const response = await fetch('/api/buzzes', {
+  const response = await fetch(`${baseUrl}/api/buzzes`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

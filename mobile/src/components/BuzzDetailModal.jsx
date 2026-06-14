@@ -15,6 +15,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getBuzzDisplay, formatDistance } from '../lib/proximity';
 import colors from '../theme/colors';
+import { auth } from '../../firebase';
+import { getBackendUrl } from '../config/backendUrl';
 
 const formatTime = (expiresAt, now) => {
   if (!expiresAt) return '00:00:00';
@@ -30,13 +32,17 @@ const formatTime = (expiresAt, now) => {
   return `${hours}:${minutes}:${seconds}`;
 };
 
-const BuzzDetailModal = ({ buzz, visible, onClose, onSignOut }) => {
+const BuzzDetailModal = ({ buzz, visible, onClose, onSignOut, location }) => {
   const insets = useSafeAreaInsets();
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordAttempt, setPasswordAttempt] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [localUpvotes, setLocalUpvotes] = useState(buzz?.upvotes || 0);
+  const [localDownvotes, setLocalDownvotes] = useState(buzz?.downvotes || 0);
+  const [hostReputation, setHostReputation] = useState(null);
+  const [voting, setVoting] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
@@ -46,11 +52,22 @@ const BuzzDetailModal = ({ buzz, visible, onClose, onSignOut }) => {
       setPasswordAttempt('');
       setPasswordError(false);
       setKeyboardHeight(0);
+      setLocalUpvotes(buzz?.upvotes || 0);
+      setLocalDownvotes(buzz?.downvotes || 0);
+      setHostReputation(null);
       return undefined;
     }
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [visible, buzz?.id]);
+
+  useEffect(() => {
+    if (visible && buzz?.creatorId) {
+      fetchHostReputation(buzz.creatorId);
+    } else {
+      setHostReputation(null);
+    }
+  }, [visible, buzz?.creatorId]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -80,6 +97,118 @@ const BuzzDetailModal = ({ buzz, visible, onClose, onSignOut }) => {
     } else {
       setPasswordError(true);
       setPasswordAttempt('');
+    }
+  };
+
+  const getIdToken = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return null;
+      return await user.getIdToken();
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const fetchHostReputation = async (creatorId) => {
+    if (!creatorId) {
+      setHostReputation(null);
+      return null;
+    }
+
+    try {
+      const token = await getIdToken();
+      const base = getBackendUrl();
+      const res = await fetch(`${base}/api/users/${creatorId}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) {
+        throw new Error('Unable to load host reputation');
+      }
+      const data = await res.json();
+      setHostReputation(data.reputation ?? 0);
+      return data.reputation ?? 0;
+    } catch (err) {
+      setHostReputation(null);
+      return null;
+    }
+  };
+
+  const handleUpvote = async () => {
+    if (!buzz?.id) return;
+    setVoting(true);
+    try {
+      const token = await getIdToken();
+      const base = getBackendUrl();
+      const res = await fetch(`${base}/api/buzzes/${buzz.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ type: 'up' }),
+      });
+      if (!res.ok) {
+        throw new Error('Vote failed');
+      }
+      setLocalUpvotes(prev => prev + 1);
+      await fetchHostReputation(buzz.creatorId);
+    } catch (err) {
+      console.warn('Upvote failed', err.message || err);
+    } finally {
+      setVoting(false);
+    }
+  };
+
+  const handleDownvote = async () => {
+    if (!buzz?.id) return;
+    setVoting(true);
+    try {
+      const token = await getIdToken();
+      const base = getBackendUrl();
+      const res = await fetch(`${base}/api/buzzes/${buzz.id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ type: 'down' }),
+      });
+      if (!res.ok) {
+        throw new Error('Vote failed');
+      }
+      setLocalDownvotes(prev => prev + 1);
+      await fetchHostReputation(buzz.creatorId);
+    } catch (err) {
+      console.warn('Downvote failed', err.message || err);
+    } finally {
+      setVoting(false);
+    }
+  };
+
+  const handleFlag = async () => {
+    if (!buzz?.id) return;
+    if (!location?.latitude || !location?.longitude) {
+      console.warn('Cannot report without current location');
+      return;
+    }
+
+    setVoting(true);
+    try {
+      const token = await getIdToken();
+      const base = getBackendUrl();
+      const res = await fetch(`${base}/api/buzzes/${buzz.id}/flag`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ userLat: location.latitude, userLng: location.longitude }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Report failed');
+      }
+      const body = await res.json();
+      if (body.report?.removed) {
+        onClose();
+      }
+      setHostReputation(prev => prev);
+    } catch (err) {
+      console.warn('Report failed', err.message || err);
+    } finally {
+      setVoting(false);
     }
   };
 
@@ -199,6 +328,10 @@ const BuzzDetailModal = ({ buzz, visible, onClose, onSignOut }) => {
                 <Text style={styles.verifiedText}>★ Verified</Text>
               </View>
             ) : null}
+            <View style={styles.flagBadge}>
+              <Text style={styles.flagBadgeText}>⚠ {buzz.flags || 0} flagged</Text>
+            </View>
+            <Text style={styles.hostRep}>Rep: {hostReputation !== null ? hostReputation : '—'}</Text>
           </View>
           <Text style={styles.title}>{buzz.title}</Text>
           <Text style={styles.description}>{buzz.description}</Text>
@@ -206,6 +339,15 @@ const BuzzDetailModal = ({ buzz, visible, onClose, onSignOut }) => {
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
               <Text style={styles.secondaryButtonText}>Close</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.voteBtn} onPress={handleUpvote} disabled={voting}>
+              <Text style={styles.voteText}>▲ {localUpvotes}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.voteBtn} onPress={handleDownvote} disabled={voting}>
+              <Text style={styles.voteText}>▼ {localDownvotes}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.reportBtn} onPress={handleFlag} disabled={voting}>
+              <Text style={styles.reportText}>Report</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.primaryButton} onPress={() => setIsCheckedIn(true)}>
               <Text style={styles.primaryButtonText}>I'm Here</Text>
@@ -405,6 +547,13 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
   },
+  hostRep: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   host: {
     color: '#71717a',
     fontSize: 11,
@@ -421,6 +570,19 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     color: '#22d3ee',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  flagBadge: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.25)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  flagBadgeText: {
+    color: '#fca5a5',
     fontSize: 9,
     fontWeight: '800',
   },
@@ -552,6 +714,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  voteBtn: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voteText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 12,
   },
 });
 

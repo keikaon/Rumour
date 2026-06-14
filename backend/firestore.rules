@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Buzz documents: creation by authenticated users only, reads only for active approved and unexpired
+    match /buzzes/{buzzId} {
+      allow create: if request.auth != null
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.moderationStatus in ['pending', 'approved'];
+
+      allow read: if request.auth != null
+        && resource.data.expiresAt > request.time
+        && resource.data.status == 'active'
+        && resource.data.moderationStatus == 'approved';
+
+      // Prevent client-side updates/deletes - server should own lifecycle
+      allow update, delete: if false;
+
+      // Disallow direct client writes to votes subcollection
+      match /votes/{voteId} {
+        allow read: if request.auth != null && resource.parent.data.status == 'active' && resource.parent.data.moderationStatus == 'approved';
+        allow write: if false;
+      }
+    }
+
+    // Users: allow reading own profile only
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Moderation logs: admin-only, block client access by default
+    match /moderation_logs/{docId} {
+      allow read, write: if false;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
