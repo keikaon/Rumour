@@ -244,8 +244,15 @@ const MapContainer = () => {
       }
 
       const data = await response.json();
-      const list = Array.isArray(data?.buzzes) ? data.buzzes : [];
+      // Backend returns array directly, not wrapped in { buzzes: [...] }
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.buzzes)
+          ? data.buzzes
+          : [];
+
       if (list.length === 0) {
+        console.warn("No buzzes returned from backend, using fallback");
         throw new Error("No buzzes returned from backend");
       }
 
@@ -256,10 +263,9 @@ const MapContainer = () => {
         }))
         .sort((a, b) => a.distance - b.distance);
 
-      if (processed.length === 0) {
-        throw new Error("No buzzes returned from backend");
-      }
-
+      console.log(
+        `[MapContainer] Loaded ${processed.length} buzzes from backend`,
+      );
       setBuzzes(processed);
       return processed;
     } catch (error) {
@@ -623,7 +629,23 @@ const MapContainer = () => {
       throw new Error(err.error || "Report failed");
     }
     const data = await res.json();
-    return data.report;
+    return data.flag;
+  };
+
+  const deleteBuzz = async (buzzId) => {
+    const token = await getIdToken();
+    if (!token) {
+      throw new Error("Authentication required to delete buzz");
+    }
+    const res = await fetch(`/api/buzzes/${buzzId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Delete failed");
+    }
+    return await res.json();
   };
 
   const fetchHostReputation = async (userId) => {
@@ -806,7 +828,9 @@ const MapContainer = () => {
                   <div>
                     <h3 className="text-2xl font-black uppercase tracking-tighter leading-none mb-1">
                       {buzzes[0].distance < 200
-                        ? buzzes[0].title
+                        ? buzzes[0].isSecret
+                          ? "SECRET EVENT"
+                          : buzzes[0].title
                         : `${buzzes[0].type} In ${buzzes[0].zone}`}
                     </h3>
                     <p className="text-[10px] font-bold text-plain-300 uppercase">
@@ -834,7 +858,9 @@ const MapContainer = () => {
                       <div className="flex flex-col">
                         <span className="text-xs font-black text-white uppercase tracking-tight">
                           {buzz.distance < 200
-                            ? buzz.title
+                            ? buzz.isSecret
+                              ? "SECRET EVENT"
+                              : buzz.title
                             : `${buzz.type} Reveal`}
                         </span>
                         <span className="text-[9px] text-plain-400 font-bold uppercase">
@@ -1057,12 +1083,42 @@ const MapContainer = () => {
                               >
                                 Close
                               </button>
-                              <button
-                                onClick={() => setIsCheckedIn(true)}
-                                className="flex-1 bg-plain-100 text-secondary-900 py-2 rounded-lg font-black text-[9px] uppercase shadow-lg transition-all hover:bg-plain-200"
-                              >
-                                I'm Here
-                              </button>
+                              {auth.currentUser &&
+                              selectedBuzz.creatorId ===
+                                auth.currentUser.uid ? (
+                                <button
+                                  onClick={async () => {
+                                    if (
+                                      !confirm(
+                                        "Delete this signal permanently? This cannot be undone.",
+                                      )
+                                    )
+                                      return;
+                                    try {
+                                      await deleteBuzz(selectedBuzz.id);
+                                      alert("Signal deleted successfully");
+                                      setSelectedBuzz(null);
+                                      setBuzzes((prev) =>
+                                        prev.filter(
+                                          (b) => b.id !== selectedBuzz.id,
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      alert(e.message);
+                                    }
+                                  }}
+                                  className="flex-1 bg-red-500 text-white py-2 rounded-lg font-black text-[9px] uppercase shadow-lg transition-all hover:bg-red-600"
+                                >
+                                  Delete
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setIsCheckedIn(true)}
+                                  className="flex-1 bg-plain-100 text-secondary-900 py-2 rounded-lg font-black text-[9px] uppercase shadow-lg transition-all hover:bg-plain-200"
+                                >
+                                  I'm Here
+                                </button>
+                              )}
                             </div>
                             <div className="flex gap-2 flex-wrap">
                               <button

@@ -147,7 +147,8 @@ export function getBuzzDisplay(buzz, options = {}) {
 
 export function getIntelLabel(buzz, isUnlocked = false) {
   const display = getBuzzDisplay(buzz, { isUnlocked });
-  if (display.tier >= 5 && !display.canUnlock) return buzz.title;
+  // For tier 5 (close proximity), use headline which respects secret locks
+  if (display.tier >= 5) return display.headline;
   if (display.tier >= 3 && buzz.zone) return `${buzz.type} in ${buzz.zone}`;
   if (display.tier === 2) return `${buzz.type} reveal`;
   return buzz.type || "Signal";

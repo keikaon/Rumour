@@ -371,6 +371,35 @@ async function recomputeUserReputation(userId) {
   return score;
 }
 
+async function deleteBuzzFromFirestore(buzzId, userId) {
+  const firestore = initFirestore();
+  if (!firestore) throw new Error("Firestore not initialized");
+
+  try {
+    const buzzRef = firestore.collection("buzzes").doc(buzzId);
+    const buzzSnap = await buzzRef.get();
+
+    if (!buzzSnap.exists) {
+      return { success: false, error: "not_found" };
+    }
+
+    const buzzData = buzzSnap.data();
+
+    // Check if user owns the buzz
+    if (buzzData.creatorId !== userId) {
+      return { success: false, error: "unauthorized" };
+    }
+
+    // Delete the buzz document
+    await buzzRef.delete();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting buzz from Firestore:", error);
+    return { success: false, error: "server_error" };
+  }
+}
+
 module.exports = {
   fetchBuzzesFromFirestore,
   createBuzzInFirestore,
@@ -380,4 +409,5 @@ module.exports = {
   removeVote,
   flagBuzz,
   recomputeUserReputation,
+  deleteBuzzFromFirestore,
 };
