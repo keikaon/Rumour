@@ -1,17 +1,26 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import colors from '../theme/colors';
-import { auth } from '../../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
+import React, { useRef, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
+import colors from "../theme/colors";
+import { auth } from "../../firebase";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import KeyboardAwareScroll from "../components/KeyboardAwareScroll";
 
 const LoginScreen = () => {
   const scrollRef = useRef(null);
   const passwordRef = useRef(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const scrollToActions = () => {
     requestAnimationFrame(() => {
@@ -20,7 +29,7 @@ const LoginScreen = () => {
   };
 
   const handleSubmit = async () => {
-    setError('');
+    setError("");
     try {
       if (isSignup) {
         await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -40,14 +49,16 @@ const LoginScreen = () => {
     >
       <View style={styles.card}>
         <Text style={styles.title}>Rumour</Text>
-        <Text style={styles.subtitle}>{isSignup ? 'Create your access key' : 'Enter your signal'}</Text>
+        <Text style={styles.subtitle}>
+          {isSignup ? "Create your access key" : "Enter your signal"}
+        </Text>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#c89aaf"
           keyboardType="email-address"
           keyboardAppearance="dark"
           autoCapitalize="none"
@@ -55,9 +66,9 @@ const LoginScreen = () => {
           returnKeyType="next"
           blurOnSubmit={false}
           value={email}
-          onChangeText={text => {
+          onChangeText={(text) => {
             setEmail(text);
-            setError('');
+            setError("");
           }}
           onSubmitEditing={() => passwordRef.current?.focus()}
           onFocus={scrollToActions}
@@ -67,26 +78,30 @@ const LoginScreen = () => {
           ref={passwordRef}
           style={styles.input}
           placeholder="Password"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#c89aaf"
           keyboardAppearance="dark"
           secureTextEntry
           returnKeyType="go"
           value={password}
-          onChangeText={text => {
+          onChangeText={(text) => {
             setPassword(text);
-            setError('');
+            setError("");
           }}
           onSubmitEditing={handleSubmit}
           onFocus={scrollToActions}
         />
 
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>{isSignup ? 'Create Account' : 'Unlock Rumour'}</Text>
+          <Text style={styles.buttonText}>
+            {isSignup ? "Create Account" : "Unlock Rumour"}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setIsSignup(!isSignup)}>
           <Text style={styles.toggleText}>
-            {isSignup ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
+            {isSignup
+              ? "Already have an account? Log in"
+              : "Don't have an account? Sign up"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -104,49 +119,49 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 5,
   },
   title: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 38,
-    fontWeight: '900',
+    fontWeight: "900",
     marginBottom: 12,
   },
   subtitle: {
-    color: '#cbd5e1',
+    color: colors.muted,
     marginBottom: 24,
     fontSize: 16,
   },
   input: {
-    backgroundColor: '#1f2937',
-    borderColor: '#334155',
+    backgroundColor: "#311e1a",
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 18,
     padding: 16,
-    color: '#ffffff',
+    color: colors.text,
     marginBottom: 16,
   },
   button: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#53ac75",
     borderRadius: 18,
     paddingVertical: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 16,
   },
   buttonText: {
-    color: '#0f172a',
-    fontWeight: '700',
+    color: colors.text,
+    fontWeight: "700",
   },
   toggleText: {
-    color: '#94a3b8',
-    textAlign: 'center',
+    color: colors.muted,
+    textAlign: "center",
     marginTop: 8,
   },
   errorText: {
-    color: '#fca5a5',
+    color: "#fca5a5",
     marginBottom: 16,
     fontSize: 14,
   },

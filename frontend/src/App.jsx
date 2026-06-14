@@ -30,7 +30,7 @@ function App() {
   // Prevents a "flicker" of the login page while checking the user's status
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-zinc-900 text-white">
+      <div className="flex items-center justify-center h-screen bg-primary-900 text-plain-100">
         <p className="animate-pulse tracking-widest uppercase text-xs">Verifying Identity...</p>
       </div>
     );

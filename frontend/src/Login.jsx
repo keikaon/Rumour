@@ -26,41 +26,41 @@ const Login = () => {
 
   return (
     /* min-h-dvh: Keeps content visible above the iPhone keyboard */
-    <div className="flex flex-col items-center justify-center min-h-dvh bg-zinc-900 text-white p-6">
+    <div className="flex flex-col items-center justify-center min-h-dvh bg-primary-900 text-plain-100 p-6">
       
       <div className="w-full max-w-sm space-y-8 flex flex-col items-center">
         <header className="text-center">
           <h1 className="text-5xl font-bold tracking-tighter italic">Rumour</h1>
-          <p className="text-zinc-400 mt-2">
+          <p className="text-secondary-200 mt-2">
             {isSignup ? "Join the community." : "Bridge the gap to your community."}
           </p>
         </header>
 
         <div className="w-full space-y-4">
-          <div className={`overflow-hidden rounded-3xl border border-red-500/60 bg-red-500/10 transition-all duration-300 ease-out ${authError ? 'max-h-40 py-4 opacity-100 translate-y-0' : 'max-h-0 py-0 opacity-0 -translate-y-2 pointer-events-none'}`} aria-live="polite">
+          <div className={`overflow-hidden rounded-3xl border border-secondary-500/40 bg-secondary-500/10 transition-all duration-300 ease-out ${authError ? 'max-h-40 py-4 opacity-100 translate-y-0' : 'max-h-0 py-0 opacity-0 -translate-y-2 pointer-events-none'}`} aria-live="polite">
             <div className={`space-y-2 px-4 ${authError ? 'opacity-100' : 'opacity-0'}`}>
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-red-300">Authentication error</p>
-              <p className="text-sm leading-snug text-red-100">{authError || ' '}</p>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-secondary-200">Authentication error</p>
+              <p className="text-sm leading-snug text-secondary-100">{authError || ' '}</p>
             </div>
           </div>
           <input 
             type="email" 
             placeholder="Email" 
-            className="w-full p-4 bg-zinc-800 border border-zinc-700 rounded-xl focus:ring-2 focus:ring-white outline-none"
+            className="w-full p-4 bg-secondary-900 border border-secondary-800 rounded-xl focus:ring-2 focus:ring-primary-400 outline-none"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setAuthError(''); }} 
           />
           <input 
             type="password" 
             placeholder="Password" 
-            className="w-full p-4 bg-zinc-800 border border-zinc-700 rounded-xl focus:ring-2 focus:ring-white outline-none"
+            className="w-full p-4 bg-secondary-900 border border-secondary-800 rounded-xl focus:ring-2 focus:ring-primary-400 outline-none"
             value={password}
             onChange={(e) => { setPassword(e.target.value); setAuthError(''); }} 
           />
           
           <button 
             onClick={handleAuth}
-            className="w-full p-4 bg-white text-black font-bold rounded-xl active:scale-95 transition-transform"
+            className="w-full p-4 bg-primary-500 text-plain-100 font-bold rounded-xl active:scale-95 transition-transform"
           >
             {isSignup ? "Create Account" : "Enter the Buzz"}
           </button>
@@ -69,7 +69,7 @@ const Login = () => {
         {/* 2. THE TOGGLE BUTTON: This flips the 'isSignup' switch */}
         <button 
           onClick={() => setIsSignup(!isSignup)}
-          className="text-zinc-500 text-sm hover:text-zinc-300"
+          className="text-secondary-200 text-sm hover:text-secondary-100"
         >
           {isSignup 
             ? "Already have an account? Log in" 

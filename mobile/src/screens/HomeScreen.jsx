@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -6,24 +6,24 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Location from 'expo-location';
-import BuzzDetailModal from '../components/BuzzDetailModal';
-import FieldGuideDrawer from '../components/FieldGuideDrawer';
-import IntelReportModal from '../components/IntelReportModal';
-import SignalMap from '../components/SignalMap';
-import { CreateBuzzFeature } from '../features/createBuzz';
-import { getBackendUrl } from '../config/backendUrl';
-import { processBuzzes } from '../lib/proximity';
-import colors from '../theme/colors';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Location from "expo-location";
+import BuzzDetailModal from "../components/BuzzDetailModal";
+import FieldGuideDrawer from "../components/FieldGuideDrawer";
+import IntelReportModal from "../components/IntelReportModal";
+import SignalMap from "../components/SignalMap";
+import { CreateBuzzFeature } from "../features/createBuzz";
+import { getBackendUrl } from "../config/backendUrl";
+import { processBuzzes } from "../lib/proximity";
+import colors from "../theme/colors";
 
 const HomeScreen = ({ user, onSignOut }) => {
   const insets = useSafeAreaInsets();
   const [location, setLocation] = useState(null);
-  const [locationStatus, setLocationStatus] = useState('locating');
+  const [locationStatus, setLocationStatus] = useState("locating");
   const [buzzes, setBuzzes] = useState([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [foundCount, setFoundCount] = useState(0);
   const [showIntelReport, setShowIntelReport] = useState(false);
@@ -32,16 +32,18 @@ const HomeScreen = ({ user, onSignOut }) => {
   const [loadingProgress, setLoadingProgress] = useState(0);
 
   const backendUrl = getBackendUrl();
-  const isReady = locationStatus === 'ready';
+  const isReady = locationStatus === "ready";
 
   useEffect(() => {
-    if (locationStatus === 'locating') {
+    if (locationStatus === "locating") {
       const interval = setInterval(() => {
-        setLoadingProgress(prev => (prev >= 90 ? prev : prev + Math.random() * 15));
+        setLoadingProgress((prev) =>
+          prev >= 90 ? prev : prev + Math.random() * 15,
+        );
       }, 400);
       return () => clearInterval(interval);
     }
-    if (locationStatus === 'success' || locationStatus === 'ready') {
+    if (locationStatus === "success" || locationStatus === "ready") {
       setLoadingProgress(100);
     }
     return undefined;
@@ -52,14 +54,14 @@ const HomeScreen = ({ user, onSignOut }) => {
   }, []);
 
   const requestLocation = async () => {
-    setError('');
-    setLocationStatus('locating');
+    setError("");
+    setLocationStatus("locating");
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
-      if (status !== 'granted') {
-        setLocationStatus('permission');
+      if (status !== "granted") {
+        setLocationStatus("permission");
         return;
       }
 
@@ -68,11 +70,11 @@ const HomeScreen = ({ user, onSignOut }) => {
       });
       setLocation(currentLocation.coords);
       await fetchBuzzes(currentLocation.coords);
-      setLocationStatus('success');
-      setTimeout(() => setLocationStatus('ready'), 1500);
+      setLocationStatus("success");
+      setTimeout(() => setLocationStatus("ready"), 1500);
     } catch (err) {
-      setLocationStatus('error');
-      setError('Unable to access location. Please try again.');
+      setLocationStatus("error");
+      setError("Unable to access location. Please try again.");
     }
   };
 
@@ -83,58 +85,65 @@ const HomeScreen = ({ user, onSignOut }) => {
     return [
       {
         id: 101,
-        type: 'Art',
-        icon: '🎨',
-        title: 'Street Mural Unveiling',
-        zone: 'Kavaklıdere Arts District',
-        teaser: 'Bring your own spray paint. Canvas provided.',
-        host: '@urban_canvas',
-        description: 'Live painting session finishing up our newest street piece.',
-        image: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=500&q=80',
+        type: "Art",
+        icon: "🎨",
+        title: "Street Mural Unveiling",
+        zone: "Kavaklıdere Arts District",
+        teaser: "Bring your own spray paint. Canvas provided.",
+        host: "@urban_canvas",
+        description:
+          "Live painting session finishing up our newest street piece.",
+        image:
+          "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=500&q=80",
         lat: lat + 0.015,
         lng: lng + 0.01,
         expiresAt: now + ONE_HOUR * 2.2,
       },
       {
         id: 102,
-        type: 'Party',
-        icon: '🍸',
-        title: 'Rooftop Mixer',
-        zone: 'Skyline Towers',
-        teaser: 'Sunset mixer. Tech house. Dress to impress.',
-        host: '@skyline_events',
-        description: 'Exclusive sunset mixer. Good vibes and networking.',
-        image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80',
+        type: "Party",
+        icon: "🍸",
+        title: "Rooftop Mixer",
+        zone: "Skyline Towers",
+        teaser: "Sunset mixer. Tech house. Dress to impress.",
+        host: "@skyline_events",
+        description: "Exclusive sunset mixer. Good vibes and networking.",
+        image:
+          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80",
         lat: lat - 0.005,
         lng: lng + 0.005,
         expiresAt: now + ONE_HOUR * 0.8,
       },
       {
         id: 103,
-        type: 'Music',
-        icon: '🎸',
-        title: 'Local Indie Gallery',
-        zone: 'Çankaya Center',
-        teaser: 'Acoustic sets and local student art.',
-        host: '@çankaya_arts',
-        description: 'A pop-up visual arts gallery featuring 5 local university students.',
-        image: 'https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=500&q=80',
+        type: "Music",
+        icon: "🎸",
+        title: "Local Indie Gallery",
+        zone: "Çankaya Center",
+        teaser: "Acoustic sets and local student art.",
+        host: "@çankaya_arts",
+        description:
+          "A pop-up visual arts gallery featuring 5 local university students.",
+        image:
+          "https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=500&q=80",
         lat: lat - 0.0006,
         lng: lng - 0.0007,
         expiresAt: now + ONE_HOUR * 3.5,
       },
       {
         id: 104,
-        type: 'Party',
-        icon: '🕺',
-        title: 'Underground Rave',
-        zone: 'Industrial Alleys',
-        teaser: 'Industrial techno all night. Entrance through the alleyway door.',
-        host: '@unknown_frequency',
-        description: 'Industrial techno all night. Do not post photos.',
-        image: 'https://images.unsplash.com/photo-1574169208507-84376144848b?w=500&q=80',
+        type: "Party",
+        icon: "🕺",
+        title: "Underground Rave",
+        zone: "Industrial Alleys",
+        teaser:
+          "Industrial techno all night. Entrance through the alleyway door.",
+        host: "@unknown_frequency",
+        description: "Industrial techno all night. Do not post photos.",
+        image:
+          "https://images.unsplash.com/photo-1574169208507-84376144848b?w=500&q=80",
         isSecret: true,
-        password: 'Fidelio!',
+        password: "Fidelio!",
         lat: lat + 0.0005,
         lng: lng + 0.0008,
         expiresAt: now + ONE_HOUR * 5.5,
@@ -142,10 +151,10 @@ const HomeScreen = ({ user, onSignOut }) => {
     ];
   };
 
-  const fetchBuzzes = async coords => {
+  const fetchBuzzes = async (coords) => {
     try {
       const response = await fetch(
-        `${backendUrl}/api/buzzes?lat=${coords.latitude}&lng=${coords.longitude}`
+        `${backendUrl}/api/buzzes?lat=${coords.latitude}&lng=${coords.longitude}`,
       );
 
       if (!response.ok) {
@@ -156,20 +165,22 @@ const HomeScreen = ({ user, onSignOut }) => {
       const list = Array.isArray(data?.buzzes) ? data.buzzes : [];
       const processed = processBuzzes(list, coords.latitude, coords.longitude);
       if (processed.length === 0) {
-        throw new Error('No buzzes returned from backend');
+        throw new Error("No buzzes returned from backend");
       }
       setBuzzes(processed);
-      setError('');
+      setError("");
       return processed;
     } catch (err) {
       const hint =
-        Platform.OS === 'ios' && !backendUrl.includes('192.168') && !backendUrl.includes('10.')
+        Platform.OS === "ios" &&
+        !backendUrl.includes("192.168") &&
+        !backendUrl.includes("10.")
           ? " Set EXPO_PUBLIC_BACKEND_URL to your PC's LAN IP (port 5000)."
-          : '';
+          : "";
       const fallback = processBuzzes(
         generateLocalMockBuzzes(coords.latitude, coords.longitude),
         coords.latitude,
-        coords.longitude
+        coords.longitude,
       );
       setBuzzes(fallback);
       setError(`Unable to reach backend. Showing offline demo signals.${hint}`);
@@ -217,7 +228,7 @@ const HomeScreen = ({ user, onSignOut }) => {
       <SignalMap
         location={location}
         buzzes={buzzes}
-        onSelectBuzz={buzz => setSelectedBuzz(buzz)}
+        onSelectBuzz={(buzz) => setSelectedBuzz(buzz)}
         dimmed={!isReady || isScanning}
         hideMarkers={isScanning}
       />
@@ -236,42 +247,56 @@ const HomeScreen = ({ user, onSignOut }) => {
         </View>
       ) : null}
 
-      {!isReady && !isScanning && locationStatus !== 'permission' ? (
+      {!isReady && !isScanning && locationStatus !== "permission" ? (
         <View style={styles.loadingOverlay} pointerEvents="none">
           <Text style={styles.loadingTitle}>Rumour</Text>
-          {locationStatus === 'locating' ? (
+          {locationStatus === "locating" ? (
             <>
-              <ActivityIndicator size="large" color="#fff" style={styles.loadingSpinner} />
+              <ActivityIndicator
+                size="large"
+                color="#f9ddf4"
+                style={styles.loadingSpinner}
+              />
               <Text style={styles.loadingHint}>Syncing local grid...</Text>
             </>
-          ) : locationStatus === 'success' ? (
+          ) : locationStatus === "success" ? (
             <View style={styles.successBadge}>
               <Text style={styles.successCheck}>✓</Text>
             </View>
           ) : null}
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${loadingProgress}%` }]} />
+            <View
+              style={[styles.progressFill, { width: `${loadingProgress}%` }]}
+            />
           </View>
         </View>
       ) : null}
 
-      {locationStatus === 'permission' ? (
+      {locationStatus === "permission" ? (
         <View style={styles.permissionOverlay}>
           <View style={styles.permissionCard}>
             <Text style={styles.permissionTitle}>Cannot get location</Text>
             <Text style={styles.permissionBody}>
-              Rumour requires access to your device's location to show nearby events. Please
-              allow location access in Settings.
+              Rumour requires access to your device's location to show nearby
+              events. Please allow location access in Settings.
             </Text>
-            <TouchableOpacity style={styles.permissionPrimary} onPress={requestLocation}>
-              <Text style={styles.permissionPrimaryText}>Retry / Request Permission</Text>
+            <TouchableOpacity
+              style={styles.permissionPrimary}
+              onPress={requestLocation}
+            >
+              <Text style={styles.permissionPrimaryText}>
+                Retry / Request Permission
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       ) : null}
 
       {isReady ? (
-        <View style={[styles.header, { paddingTop: insets.top + 12 }]} pointerEvents="box-none">
+        <View
+          style={[styles.header, { paddingTop: insets.top + 12 }]}
+          pointerEvents="box-none"
+        >
           <Text style={styles.headerTitle}>Rumour</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
@@ -280,7 +305,7 @@ const HomeScreen = ({ user, onSignOut }) => {
               disabled={isScanning}
             >
               <Text style={styles.scanBtnText}>
-                {isScanning ? 'Scanning...' : 'Initiate Scan'}
+                {isScanning ? "Scanning..." : "Initiate Scan"}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.leaveBtn} onPress={onSignOut}>
@@ -331,7 +356,7 @@ const HomeScreen = ({ user, onSignOut }) => {
         visible={showIntelReport}
         buzzes={buzzes}
         onClose={() => setShowIntelReport(false)}
-        onSelectBuzz={buzz => {
+        onSelectBuzz={(buzz) => {
           setShowIntelReport(false);
           setSelectedBuzz(buzz);
         }}
@@ -355,70 +380,70 @@ const styles = StyleSheet.create({
   },
   scanOverlay: {
     ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(26,1,61,0.35)",
     zIndex: 50,
   },
   sonarRingOuter: {
-    position: 'absolute',
+    position: "absolute",
     width: 320,
     height: 320,
     borderRadius: 160,
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.2)',
+    borderColor: "rgba(83,172,117,0.2)",
   },
   sonarRingInner: {
-    position: 'absolute',
+    position: "absolute",
     width: 220,
     height: 220,
     borderRadius: 110,
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.4)',
+    borderColor: "rgba(83,172,117,0.4)",
   },
   scanCard: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: "rgba(26,1,61,0.6)",
     borderRadius: 48,
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.3)',
+    borderColor: "rgba(83,172,117,0.3)",
     paddingVertical: 32,
     paddingHorizontal: 40,
-    alignItems: 'center',
+    alignItems: "center",
   },
   scanEmoji: {
     fontSize: 48,
     marginBottom: 12,
   },
   scanLabel: {
-    color: '#22c55e',
+    color: "#53ac75",
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 3,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginBottom: 8,
   },
   scanCount: {
-    color: '#fff',
+    color: "#f9ddf4",
     fontSize: 40,
-    fontWeight: '900',
-    fontStyle: 'italic',
+    fontWeight: "900",
+    fontStyle: "italic",
   },
   scanCountDim: {
-    color: 'rgba(34,197,94,0.5)',
+    color: "rgba(83,172,117,0.5)",
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(26,1,61,0.4)",
     zIndex: 70,
   },
   loadingTitle: {
-    color: 'rgba(255,255,255,0.15)',
+    color: "rgba(255,255,255,0.15)",
     fontSize: 56,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    textTransform: 'uppercase',
+    fontWeight: "900",
+    fontStyle: "italic",
+    textTransform: "uppercase",
     letterSpacing: -2,
     marginBottom: 32,
   },
@@ -426,48 +451,48 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   loadingHint: {
-    color: '#71717a',
+    color: "#c89aaf",
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 2,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   successBadge: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#f9ddf4",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 12,
   },
   successCheck: {
-    color: '#000',
+    color: "#1a013d",
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   progressTrack: {
     width: 200,
     height: 4,
-    backgroundColor: '#27272a',
+    backgroundColor: "#470107",
     borderRadius: 2,
     marginTop: 24,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   progressFill: {
-    height: '100%',
-    backgroundColor: '#fff',
+    height: "100%",
+    backgroundColor: "#f9ddf4",
   },
   permissionOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(26,1,61,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 24,
     zIndex: 90,
   },
   permissionCard: {
-    backgroundColor: '#18181b',
+    backgroundColor: "#1a013d",
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
@@ -475,59 +500,59 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   permissionTitle: {
-    color: '#fff',
+    color: "#f9ddf4",
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: "900",
     marginBottom: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
   permissionBody: {
-    color: '#a1a1aa',
-    textAlign: 'center',
+    color: "#c89aaf",
+    textAlign: "center",
     lineHeight: 22,
     marginBottom: 20,
   },
   permissionPrimary: {
-    backgroundColor: '#22c55e',
+    backgroundColor: "#53ac75",
     borderRadius: 24,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   permissionPrimaryText: {
-    color: '#000',
-    fontWeight: '800',
+    color: "#1a013d",
+    fontWeight: "800",
     fontSize: 13,
   },
   header: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     paddingHorizontal: 20,
     zIndex: 40,
   },
   headerTitle: {
-    color: '#fff',
+    color: "#f9ddf4",
     fontSize: 36,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    textTransform: 'uppercase',
+    fontWeight: "900",
+    fontStyle: "italic",
+    textTransform: "uppercase",
     letterSpacing: -1,
   },
   headerActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   scanBtn: {
-    backgroundColor: '#22c55e',
+    backgroundColor: "#53ac75",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 24,
-    shadowColor: '#22c55e',
+    shadowColor: "#53ac75",
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 4,
@@ -536,14 +561,14 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   scanBtnText: {
-    color: '#000',
+    color: "#1a013d",
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 1,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   leaveBtn: {
-    backgroundColor: '#18181b',
+    backgroundColor: "#1a013d",
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 16,
@@ -551,19 +576,19 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   leaveBtnText: {
-    color: '#fff',
+    color: "#f9ddf4",
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 1,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   fieldProtocolBtn: {
-    position: 'absolute',
+    position: "absolute",
     left: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
-    backgroundColor: 'rgba(24,24,27,0.9)',
+    backgroundColor: "rgba(26,1,61,0.9)",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 28,
@@ -576,41 +601,41 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#27272a',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#470107",
+    alignItems: "center",
+    justifyContent: "center",
   },
   fieldProtocolEmoji: {
     fontSize: 20,
   },
   fieldProtocolLabel: {
-    color: '#fff',
+    color: "#f9ddf4",
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: "800",
     letterSpacing: 2,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   fieldProtocolVersion: {
-    color: '#71717a',
+    color: "#c89aaf",
     fontSize: 8,
-    fontFamily: 'monospace',
+    fontFamily: "monospace",
     letterSpacing: 1,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginTop: 2,
   },
   errorBanner: {
-    position: 'absolute',
+    position: "absolute",
     left: 16,
     right: 16,
-    backgroundColor: 'rgba(127,29,29,0.9)',
+    backgroundColor: "rgba(127,29,29,0.9)",
     borderRadius: 12,
     padding: 12,
     zIndex: 45,
   },
   errorText: {
-    color: '#fecaca',
+    color: "#fecaca",
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
 

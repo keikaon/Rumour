@@ -16,12 +16,12 @@ const navigationTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    primary: '#f8fafc',
+    primary: '#53ac75',
     background: colors.background,
-    card: colors.background,
-    text: '#ffffff',
+    card: colors.surface,
+    text: colors.text,
     border: colors.border,
-    notification: '#22c55e',
+    notification: '#f9ddf4',
   },
 };
 
@@ -53,7 +53,7 @@ export default function App() {
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       {loading ? (
         <SafeAreaView style={styles.loadingContainer} edges={SAFE_AREA_EDGES}>
-          <ActivityIndicator size="large" color="#ffffff" />
+          <ActivityIndicator size="large" color={colors.text} />
         </SafeAreaView>
       ) : (
         <NavigationContainer theme={navigationTheme}>

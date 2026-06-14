@@ -30,14 +30,14 @@ export function getTier(distance) {
 
 export function categoryColor(type) {
   const category = type?.toLowerCase();
-  if (category === 'art') return '#ec4899';
-  if (category === 'party') return '#22c55e';
-  if (category === 'music') return '#f59e0b';
-  if (category === 'food') return '#fb923c';
-  if (category === 'gaming') return '#06b6d4';
-  if (category === 'giveaway') return '#f8fafc';
-  if (category === 'fitness') return '#10b981';
-  return '#94a3b8';
+  if (category === "art") return "#ec4899";
+  if (category === "party") return "#53ac75";
+  if (category === "music") return "#f59e0b";
+  if (category === "food") return "#fb923c";
+  if (category === "gaming") return "#06b6d4";
+  if (category === "giveaway") return "#f9ddf4";
+  if (category === "fitness") return "#10b981";
+  return "#c89aaf";
 }
 
 export function formatDistance(distance) {
@@ -56,7 +56,17 @@ export function getBuzzDisplay(buzz, options = {}) {
   const tier = getTier(distance);
 
   if (tier === 1) {
-    return { visible: false, tier, distance, headline: '', subtitle: '', body: '', calloutTitle: '', calloutBody: '', markerMode: 'hidden' };
+    return {
+      visible: false,
+      tier,
+      distance,
+      headline: "",
+      subtitle: "",
+      body: "",
+      calloutTitle: "",
+      calloutBody: "",
+      markerMode: "hidden",
+    };
   }
 
   if (tier === 2) {
@@ -65,11 +75,11 @@ export function getBuzzDisplay(buzz, options = {}) {
       tier,
       distance,
       headline: `${buzz.type} signal`,
-      subtitle: 'Distant aura detected',
-      body: 'Move closer to intercept zone data.',
-      calloutTitle: buzz.type?.toUpperCase() || 'SIGNAL',
-      calloutBody: 'Aura only — approach to learn more.',
-      markerMode: 'aura',
+      subtitle: "Distant aura detected",
+      body: "Move closer to intercept zone data.",
+      calloutTitle: buzz.type?.toUpperCase() || "SIGNAL",
+      calloutBody: "Aura only — approach to learn more.",
+      markerMode: "aura",
       showTypeOnly: true,
     };
   }
@@ -79,13 +89,15 @@ export function getBuzzDisplay(buzz, options = {}) {
       visible: true,
       tier,
       distance,
-      headline: buzz.zone || 'Unknown zone',
-      subtitle: `${buzz.type?.toUpperCase() || 'SIGNAL'} • Echo`,
-      body: buzz.zone ? `Signals in ${buzz.zone}. Move closer to intercept data.` : 'Faint signal — move closer.',
+      headline: buzz.zone || "Unknown zone",
+      subtitle: `${buzz.type?.toUpperCase() || "SIGNAL"} • Echo`,
+      body: buzz.zone
+        ? `Signals in ${buzz.zone}. Move closer to intercept data.`
+        : "Faint signal — move closer.",
       calloutTitle: buzz.zone || buzz.type,
-      calloutBody: buzz.type?.toUpperCase() || 'ECHO',
-      markerMode: 'echo',
-      icon: buzz.icon || '📍',
+      calloutBody: buzz.type?.toUpperCase() || "ECHO",
+      markerMode: "echo",
+      icon: buzz.icon || "📍",
     };
   }
 
@@ -94,13 +106,15 @@ export function getBuzzDisplay(buzz, options = {}) {
       visible: true,
       tier,
       distance,
-      headline: 'Teaser intercepted',
+      headline: "Teaser intercepted",
       subtitle: buzz.zone || buzz.type,
-      body: buzz.teaser ? `"${buzz.teaser}"` : 'Encrypted teaser — keep walking.',
-      calloutTitle: buzz.zone || 'Teaser',
-      calloutBody: buzz.teaser || 'Hook unlocked — approach for full reveal.',
-      markerMode: 'hook',
-      icon: buzz.icon || '🪝',
+      body: buzz.teaser
+        ? `"${buzz.teaser}"`
+        : "Encrypted teaser — keep walking.",
+      calloutTitle: buzz.zone || "Teaser",
+      calloutBody: buzz.teaser || "Hook unlocked — approach for full reveal.",
+      markerMode: "hook",
+      icon: buzz.icon || "🪝",
     };
   }
 
@@ -110,15 +124,19 @@ export function getBuzzDisplay(buzz, options = {}) {
     visible: true,
     tier,
     distance,
-    headline: secretLocked ? 'SECRET EVENT' : buzz.title,
+    headline: secretLocked ? "SECRET EVENT" : buzz.title,
     subtitle: secretLocked
-      ? `${buzz.type?.toUpperCase() || 'PARTY'} • Locked`
-      : `${buzz.host || 'Host'} • ${formatDistance(distance)}`,
-    body: secretLocked ? buzz.teaser || 'Password required at the door.' : buzz.description || '',
-    calloutTitle: secretLocked ? 'SECRET EVENT' : buzz.title,
-    calloutBody: secretLocked ? 'Knock to unlock' : buzz.description?.slice(0, 80) || '',
-    markerMode: secretLocked ? 'secret' : 'target',
-    icon: buzz.icon || '📍',
+      ? `${buzz.type?.toUpperCase() || "PARTY"} • Locked`
+      : `${buzz.host || "Host"} • ${formatDistance(distance)}`,
+    body: secretLocked
+      ? buzz.teaser || "Password required at the door."
+      : buzz.description || "",
+    calloutTitle: secretLocked ? "SECRET EVENT" : buzz.title,
+    calloutBody: secretLocked
+      ? "Knock to unlock"
+      : buzz.description?.slice(0, 80) || "",
+    markerMode: secretLocked ? "secret" : "target",
+    icon: buzz.icon || "📍",
     canUnlock: buzz.isSecret && !isUnlocked,
     showFullDetail: !secretLocked,
     host: buzz.host,
@@ -132,15 +150,15 @@ export function getIntelLabel(buzz, isUnlocked = false) {
   if (display.tier >= 5 && !display.canUnlock) return buzz.title;
   if (display.tier >= 3 && buzz.zone) return `${buzz.type} in ${buzz.zone}`;
   if (display.tier === 2) return `${buzz.type} reveal`;
-  return buzz.type || 'Signal';
+  return buzz.type || "Signal";
 }
 
 export function processBuzzes(rawBuzzes, lat, lng) {
   return rawBuzzes
-    .map(buzz => ({
+    .map((buzz) => ({
       ...buzz,
       distance: getDistanceInMeters(lat, lng, buzz.lat, buzz.lng),
     }))
-    .filter(b => getTier(b.distance) > 1)
+    .filter((b) => getTier(b.distance) > 1)
     .sort((a, b) => a.distance - b.distance);
 }
