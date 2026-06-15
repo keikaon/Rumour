@@ -6,7 +6,9 @@ import ProfileLegend from "./ProfileLegend";
 import { CreateBuzzFeature } from "../features/createBuzz";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-
+const BASE_URL = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, "")
+  : "";
 // 🧮 MATH ENGINE: Distance calculation
 function getDistanceInMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
@@ -238,7 +240,9 @@ const MapContainer = () => {
       .sort((a, b) => a.distance - b.distance);
 
     try {
-      const response = await fetch(`/api/buzzes?lat=${lat}&lng=${lng}`);
+      const response = await fetch(
+        `${BASE_URL}/api/buzzes?lat=${lat}&lng=${lng}`,
+      );
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -578,7 +582,7 @@ const MapContainer = () => {
 
   const voteBuzz = async (buzzId, type) => {
     const token = await getIdToken();
-    const res = await fetch(`/api/buzzes/${buzzId}/vote`, {
+    const res = await fetch(`${BASE_URL}/api/buzzes/${buzzId}/vote`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -596,7 +600,7 @@ const MapContainer = () => {
 
   const unvoteBuzz = async (buzzId) => {
     const token = await getIdToken();
-    const res = await fetch(`/api/buzzes/${buzzId}/vote`, {
+    const res = await fetch(`${BASE_URL}/api/buzzes/${buzzId}/vote`, {
       method: "DELETE",
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
@@ -613,7 +617,7 @@ const MapContainer = () => {
     if (!userCoords) {
       throw new Error("Current location required to report a signal.");
     }
-    const res = await fetch(`/api/buzzes/${buzzId}/flag`, {
+    const res = await fetch(`${BASE_URL}/api/buzzes/${buzzId}/flag`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -637,7 +641,7 @@ const MapContainer = () => {
     if (!token) {
       throw new Error("Authentication required to delete buzz");
     }
-    const res = await fetch(`/api/buzzes/${buzzId}`, {
+    const res = await fetch(`${BASE_URL}/api/buzzes/${buzzId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -652,7 +656,7 @@ const MapContainer = () => {
     if (!userId) return null;
     try {
       const token = await getIdToken();
-      const res = await fetch(`/api/users/${userId}`, {
+      const res = await fetch(`${BASE_URL}/api/users/${userId}`, {
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
       if (!res.ok) return null;
