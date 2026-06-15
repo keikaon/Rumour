@@ -6,7 +6,10 @@ export async function postCreateBuzz(payload, backendUrl = "") {
     throw new Error("You must be signed in to start a signal.");
   }
 
-  const baseUrl = backendUrl ? backendUrl.replace(/\/$/, "") : "";
+  // 🌐 Fallback to the environment variable if backendUrl wasn't passed down
+  const finalBackendUrl = backendUrl || import.meta.env.VITE_API_URL || "";
+  const baseUrl = finalBackendUrl ? finalBackendUrl.replace(/\/$/, "") : "";
+
   const token = await user.getIdToken();
   const response = await fetch(`${baseUrl}/api/buzzes`, {
     method: "POST",
